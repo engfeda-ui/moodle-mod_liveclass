@@ -89,3 +89,4 @@ check("No raw $_SESSION usage in plugin", true);
 
 console.log(failures ? `\nCONTRACT CHECK FAILED (${failures} errors)` : "\nCONTRACT CHECK PASSED (All checks green)");
 process.exit(failures ? 1 : 0);
+

@@ -108,3 +108,4 @@ class liveclass_test extends advanced_testcase {
         $this->assertCount(3, $parts);
     }
 }
+

@@ -44,3 +44,4 @@ for (const file of phpFiles) {
 
 console.log(failures ? `\nPHP SYNTAX CHECK FAILED (${failures} errors)` : `\nPHP SYNTAX CHECK PASSED (0 errors in ${phpFiles.length} files)`);
 process.exit(failures ? 1 : 0);
+

@@ -74,3 +74,4 @@ for (const pat of forbiddenPatterns) {
 
 console.log(failures ? `\nSMOKE SUITE FAILED (${failures} errors)` : "\nSMOKE SUITE PASSED (All checks green)");
 process.exit(failures ? 1 : 0);
+
