@@ -36,6 +36,7 @@ $string['liveclass:join'] = 'Join live virtual classroom';
 $string['liveclass:moderate'] = 'Moderate and control live session';
 $string['liveclass:record'] = 'Record live session';
 $string['liveclass:viewattendance'] = 'View live attendance reports';
+$string['messageprovider:nudge'] = 'LiveClass student presence alerts and nudges';
 
 // General Form Strings.
 $string['classname'] = 'Class Name';

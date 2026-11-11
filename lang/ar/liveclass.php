@@ -36,6 +36,7 @@ $string['liveclass:join'] = 'الانضمام للحصة المباشرة';
 $string['liveclass:moderate'] = 'إدارة الحصة والتحكم بالمشاركين';
 $string['liveclass:record'] = 'تسجيل الحصة المباشرة';
 $string['liveclass:viewattendance'] = 'الاطلاع على تقارير الحضور اللحظية';
+$string['messageprovider:nudge'] = 'تنبيهات وإشعارات حضور الطلاب المباشرة';
 
 // General Form Strings.
 $string['classname'] = 'عنوان الحصة';
