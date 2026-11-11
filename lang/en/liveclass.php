@@ -136,4 +136,9 @@ $string['session_attendees'] = 'Attendees';
 $string['recording_status'] = 'Recording';
 $string['recording_ready'] = 'Available';
 $string['recording_none'] = 'Not Recorded';
+$string['start_recording'] = 'Start Recording';
+$string['stop_recording'] = 'Stop Recording';
+$string['recording_in_progress'] = 'Recording (REC)';
+$string['recording_started_msg'] = 'Session recording has started';
+$string['recording_stopped_msg'] = 'Session recording has been stopped';
 

@@ -105,6 +105,7 @@ $PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
     'sessionId'        => (int)$session_id,
     'cmid'             => (int)$cm->id,
     'sesskey'          => sesskey(),
+    'recordingMode'    => (int)$liveclass->recording_mode,
     'warnTabSwitch'    => (bool)$liveclass->warn_tab_switch,
     'minAttendancePct' => (int)$liveclass->min_attendance_pct,
     'startTime'        => (int)$liveclass->start_time,

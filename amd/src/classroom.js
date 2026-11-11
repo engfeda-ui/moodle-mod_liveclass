@@ -22,6 +22,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             this.timerInterval = null;
             this.pollInterval = null;
             this.activePollId = 0;
+            this.isRecording = (this.config.recordingMode === 1);
 
             this.bindEvents();
         }
@@ -61,6 +62,9 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-danger rounded-pill px-3 py-2 animate-pulse">
                                 <i class="fa fa-circle"></i> مباشر
+                            </span>
+                            <span id="recording-badge" class="badge bg-danger rounded-pill px-3 py-2 animate-pulse ${self.isRecording ? '' : 'd-none'}">
+                                <i class="fa fa-circle"></i> REC
                             </span>
                             <span class="fw-bold ms-2">${self.config.roomName}</span>
                         </div>
@@ -123,6 +127,12 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                             <button id="btn-stage-mute-all" class="btn btn-danger rounded-pill px-3 py-2 shadow-sm" title="كتم صوت جميع الطلاب">
                                 <i class="fa fa-microphone-slash"></i> كتم الجميع
                             </button>
+                            ${self.config.recordingMode === 2 ? `
+                                <button id="btn-toggle-recording" class="btn ${self.isRecording ? 'btn-danger' : 'btn-outline-danger'} rounded-pill px-3 py-2 shadow-sm" title="بدء / إيقاف التسجيل">
+                                    <i class="fa ${self.isRecording ? 'fa-stop' : 'fa-circle'}"></i> 
+                                    <span id="recording-btn-label">${self.isRecording ? 'إيقاف التسجيل' : 'بدء التسجيل'}</span>
+                                </button>
+                            ` : ''}
                         ` : ''}
                         <button id="btn-fullscreen" class="btn btn-outline-light rounded-circle p-3" title="ملء الشاشة">
                             <i class="fa fa-arrows-alt fa-lg"></i>
@@ -226,6 +236,41 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                             if (res.status === 'success') {
                                 alert(res.message);
                             }
+                        });
+                }
+            });
+
+            // Toggle Recording (Moderator Controlled mode: recordingMode === 2)
+            $('#btn-toggle-recording').on('click', function() {
+                const action = self.isRecording ? 'stop_recording' : 'start_recording';
+                const confirmPrompt = self.isRecording ? 'هل أنت متأكد من إيقاف تسجيل الحصة؟' : 'هل تريد بدء تسجيل الحصة الآن؟';
+
+                if (confirm(confirmPrompt)) {
+                    fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=' + action + '&sesskey=' + self.config.sesskey)
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.status === 'success') {
+                                self.isRecording = !self.isRecording;
+                                if (self.isRecording) {
+                                    $('#recording-badge').removeClass('d-none');
+                                    $('#btn-toggle-recording')
+                                        .removeClass('btn-outline-danger')
+                                        .addClass('btn-danger')
+                                        .find('i').removeClass('fa-circle').addClass('fa-stop');
+                                    $('#recording-btn-label').text('إيقاف التسجيل');
+                                } else {
+                                    $('#recording-badge').addClass('d-none');
+                                    $('#btn-toggle-recording')
+                                        .removeClass('btn-danger')
+                                        .addClass('btn-outline-danger')
+                                        .find('i').removeClass('fa-stop').addClass('fa-circle');
+                                    $('#recording-btn-label').text('بدء التسجيل');
+                                }
+                                alert(res.message);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('[LiveClass] Recording control error:', err);
                         });
                 }
             });

@@ -105,3 +105,4 @@ foreach ($roster->students as $st) {
 
 fclose($output);
 exit;
+

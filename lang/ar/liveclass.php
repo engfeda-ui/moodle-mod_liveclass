@@ -136,4 +136,9 @@ $string['session_attendees'] = 'عدد الحضور';
 $string['recording_status'] = 'حالة التسجيل';
 $string['recording_ready'] = 'جاهز للمشاهدة';
 $string['recording_none'] = 'غير مسجل';
+$string['start_recording'] = 'بدء التسجيل';
+$string['stop_recording'] = 'إيقاف التسجيل';
+$string['recording_in_progress'] = 'جاري التسجيل (REC)';
+$string['recording_started_msg'] = 'تم بدء تسجيل الجلسة من قِبل المحاضر';
+$string['recording_stopped_msg'] = 'تم إيقاف التسجيل بنجاح';
 

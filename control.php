@@ -64,8 +64,45 @@ switch ($action) {
         ]);
         break;
 
+    case 'start_recording':
+        if ($session_id > 0) {
+            $log = (object)[
+                'sessionid'    => $session_id,
+                'userid'       => $USER->id,
+                'event_type'   => 'recording_started',
+                'event_data'   => json_encode(['moderator' => fullname($USER), 'time' => time()]),
+                'timecreated'  => time()
+            ];
+            $DB->insert_record('liveclass_presence_logs', $log);
+        }
+
+        echo json_encode([
+            'status'  => 'success',
+            'message' => get_string('recording_started_msg', 'mod_liveclass')
+        ]);
+        break;
+
+    case 'stop_recording':
+        if ($session_id > 0) {
+            $log = (object)[
+                'sessionid'    => $session_id,
+                'userid'       => $USER->id,
+                'event_type'   => 'recording_stopped',
+                'event_data'   => json_encode(['moderator' => fullname($USER), 'time' => time()]),
+                'timecreated'  => time()
+            ];
+            $DB->insert_record('liveclass_presence_logs', $log);
+        }
+
+        echo json_encode([
+            'status'  => 'success',
+            'message' => get_string('recording_stopped_msg', 'mod_liveclass')
+        ]);
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
         break;
 }
 exit;
+
