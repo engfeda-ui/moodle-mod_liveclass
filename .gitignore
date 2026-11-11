@@ -1,0 +1,11 @@
+# Moodle Plugin Git Ignore
+*~
+*.swp
+*.bak
+.DS_Store
+Thumbs.db
+/nbproject/
+/.idea/
+/.vscode/
+/node_modules/
+/vendor/
