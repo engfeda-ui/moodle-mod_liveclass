@@ -198,3 +198,4 @@ class attendance_engine {
         return $DB->insert_record('liveclass_presence_logs', $log);
     }
 }
+

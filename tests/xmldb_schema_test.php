@@ -41,3 +41,4 @@ if (!empty($missing)) {
 
 echo "PASS: XMLDB schema verified (" . count($found_tables) . " tables defined with valid structure).\n";
 exit(0);
+

@@ -117,3 +117,4 @@ switch ($event) {
 }
 
 echo json_encode(['status' => 'success', 'event' => $event]);
+

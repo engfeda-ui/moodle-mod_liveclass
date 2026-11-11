@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.0-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.1-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -48,6 +48,12 @@ The plugin introduces 7 specialized tables:
 
 ## 📋 Changelog
 
+### [v1.0.1] - 2026-11-11
+- Added WebRTC Classroom AMD module controller (`amd/src/classroom.js` and `amd/build/classroom.min.js`).
+- Integrated browser media controls: local camera, microphone toggles, screen sharing, and raise-hand interaction.
+- Implemented real-time presence telemetry and tab-switching monitoring endpoint (`log_event.php`).
+- Styled responsive dark-theme virtual classroom workspace (`styles.css`, `view.php`).
+
 ### [v1.0.0] - 2026-11-11
 - Initial release of `mod_liveclass` for Energy & Water Academy (EWA).
 - Complete XMLDB schema with 7 tables (`db/install.xml`).
@@ -56,3 +62,4 @@ The plugin introduces 7 specialized tables:
 - LiveKit Webhook endpoint for join/leave events (`webhook.php`).
 - Bilingual English/Arabic support with 100% key parity (`lang/en`, `lang/ar`).
 - Zero-dependency verification test suite (`tests/`).
+

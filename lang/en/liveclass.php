@@ -74,3 +74,4 @@ $string['session_details'] = 'Session Information';
 $string['min_attendance_req'] = 'Required Attendance';
 $string['attendance_status'] = 'Attendance Progress';
 $string['attendance_auto_tracked_desc'] = 'Your active participation time is automatically monitored by the LiveKit engine.';
+

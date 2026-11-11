@@ -62,3 +62,4 @@ if ($encoded_expected_sig !== $parts[2]) {
 
 echo "PASS: LiveKit token factory generated cryptographically valid JWT with correct claims.\n";
 exit(0);
+

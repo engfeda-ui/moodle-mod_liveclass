@@ -124,3 +124,4 @@ function liveclass_supports($feature) {
             return null;
     }
 }
+

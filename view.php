@@ -27,7 +27,6 @@ require_once(__DIR__ . '/lib.php');
 
 $id = optional_param('id', 0, PARAM_INT); // Course Module ID.
 $l  = optional_param('l', 0, PARAM_INT);  // Liveclass instance ID.
-$action = optional_param('action', 'view', PARAM_ALPHA);
 
 if ($id) {
     $cm = get_coursemodule_from_id('liveclass', $id, 0, false, MUST_EXIST);
@@ -51,6 +50,36 @@ $PAGE->set_title(format_string($liveclass->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
+// Find or initialize active session.
+$session = $DB->get_record('liveclass_sessions', [
+    'liveclassid' => $liveclass->id,
+    'status'      => 'active'
+]);
+
+if (!$session) {
+    $session = $DB->get_record('liveclass_sessions', [
+        'liveclassid' => $liveclass->id,
+        'status'      => 'scheduled'
+    ]);
+}
+
+if (!$session && $is_moderator) {
+    $session = (object)[
+        'liveclassid'        => $liveclass->id,
+        'session_uuid'       => \core\uuid::generate(),
+        'livekit_room_sid'   => '',
+        'actual_start'       => time(),
+        'actual_end'         => 0,
+        'status'             => 'active',
+        'recording_url'      => '',
+        'total_participants' => 1,
+        'timecreated'        => time()
+    ];
+    $session->id = $DB->insert_record('liveclass_sessions', $session);
+}
+
+$session_id = $session ? $session->id : 0;
+
 // Generate LiveKit Access Token for this user.
 $identity = 'user_' . $USER->id;
 $displayname = fullname($USER);
@@ -66,23 +95,23 @@ $token = \mod_liveclass\token_factory::create_token(
 
 $livekit_host = get_config('mod_liveclass', 'livekit_host') ?: 'wss://lms.sanad.ws:7880';
 
+// Initialize AMD Classroom module.
+$PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
+    'host'             => $livekit_host,
+    'token'            => $token,
+    'roomName'         => $liveclass->room_name,
+    'displayName'      => $displayname,
+    'isModerator'      => (bool)$is_moderator,
+    'sessionId'        => (int)$session_id,
+    'cmid'             => (int)$cm->id,
+    'sesskey'          => sesskey(),
+    'warnTabSwitch'    => (bool)$liveclass->warn_tab_switch,
+    'minAttendancePct' => (int)$liveclass->min_attendance_pct,
+    'startTime'        => (int)$liveclass->start_time,
+    'endTime'          => (int)$liveclass->end_time
+]]);
+
 echo $OUTPUT->header();
-
-// Tab Switch Alert & Presence Listener.
-$PAGE->requires->js_amd_inline("
-    require(['jquery'], function($) {
-        if (" . ($liveclass->warn_tab_switch ? '1' : '0') . ") {
-            let tabSwitchCount = 0;
-            document.addEventListener('visibilitychange', function() {
-                if (document.hidden) {
-                    tabSwitchCount++;
-                    console.warn('[LiveClass] Student switched tabs. Count: ' + tabSwitchCount);
-                }
-            });
-        }
-    });
-");
-
 ?>
 <div class="liveclass-container">
     <div class="liveclass-header d-flex justify-content-between align-items-center mb-3">
@@ -102,7 +131,7 @@ $PAGE->requires->js_amd_inline("
     <!-- LiveClass WebRTC Viewport -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-0">
-            <div id="liveclass-stage" class="bg-dark text-white rounded d-flex flex-column justify-content-center align-items-center" style="min-height: 520px; position: relative;">
+            <div id="liveclass-stage" class="bg-dark text-white rounded d-flex flex-column justify-content-center align-items-center" style="min-height: 540px; position: relative;">
                 <div class="text-center p-4">
                     <div class="mb-3">
                         <i class="fa fa-graduation-cap fa-4x text-info"></i>
@@ -110,7 +139,7 @@ $PAGE->requires->js_amd_inline("
                     <h4><?php echo get_string('ready_to_join', 'mod_liveclass'); ?></h4>
                     <p class="text-muted"><?php echo get_string('ready_desc', 'mod_liveclass'); ?></p>
                     
-                    <button id="btn-join-liveclass" class="btn btn-primary btn-lg px-4 shadow">
+                    <button id="btn-join-liveclass" class="btn btn-primary btn-lg px-5 shadow rounded-pill">
                         <i class="fa fa-play-circle"></i> <?php echo get_string('join_now', 'mod_liveclass'); ?>
                     </button>
                 </div>

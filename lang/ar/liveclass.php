@@ -74,3 +74,4 @@ $string['session_details'] = 'معلومات وتفاصيل الحصة';
 $string['min_attendance_req'] = 'نسبة الحضور المطلوبة';
 $string['attendance_status'] = 'مستوى إثبات الحضور';
 $string['attendance_auto_tracked_desc'] = 'يتم رصد وحساب دقائق حضورك الفعلي آلياً وبدقة عبر محرك الحضور الذكي.';
+

@@ -21,11 +21,24 @@
 - **LiveKit API Key**: `SANAD_API_KEY`
 - **LiveKit API Secret**: `sanad_proctoring_secret_key_2026_livekit`
 - **Moodle App Container**: `moodle-app`
+- **Remote Plugin Path**: `/home/ubuntu/moodle-project/mod/liveclass/`
+
+## Mandatory 4-Step Release Workflow
+Every edit must automatically run:
+1. Bump version in `version.php` and update changelog in `README.md`.
+2. Push changes to GitHub: `git push origin master`.
+3. Package ZIP: `powershell -ExecutionPolicy Bypass -File "c:\Users\mahmo\OneDrive - Energy & Water Academy\Work\Repo\package_moodle_plugins.ps1"`.
+4. Deploy to `150.230.241.37`:
+   ```powershell
+   cmd /c "tar -czf - -C `"$localPath`" . | ssh -i `"$sshKey`" -o StrictHostKeyChecking=no ubuntu@150.230.241.37 `"sudo tar -xzf - -C /home/ubuntu/moodle-project/mod/liveclass/`""
+   ssh -i $sshKey -o StrictHostKeyChecking=no ubuntu@150.230.241.37 "sudo docker exec -u www-data moodle-app php /var/www/html/admin/cli/upgrade.php --non-interactive && sudo docker exec -u www-data moodle-app php /var/www/html/admin/cli/purge_caches.php"
+   ```
 
 ## Verification Suite
-Run zero-dependency test gates:
+Run zero-dependency test gates before every commit:
 ```bash
 php tests/i18n_parity_test.php
 php tests/token_factory_test.php
 php tests/xmldb_schema_test.php
 ```
+
