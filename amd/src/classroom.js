@@ -284,3 +284,4 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
         }
     };
 });
+

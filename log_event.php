@@ -68,3 +68,4 @@ $logid = \mod_liveclass\attendance_engine::log_presence_event(
 );
 
 echo json_encode(['status' => 'success', 'logid' => $logid]);
+

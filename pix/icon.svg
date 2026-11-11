@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="liveclassBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0072bc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f3460;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="liveclassAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d2ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0072bc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#liveclassBg)"/>
+  <!-- Camera body -->
+  <rect x="10" y="14" width="30" height="36" rx="6" fill="#ffffff" />
+  <!-- Lens triangle -->
+  <path d="M42 25 L54 18 C55.5 17 57 18 57 19.5 L57 44.5 C57 46 55.5 47 54 46 L42 39 Z" fill="#ffffff" />
+  <!-- Presenter avatar inside screen -->
+  <circle cx="25" cy="27" r="5" fill="url(#liveclassAccent)" />
+  <path d="M16 43 C16 37 19.5 35 25 35 C30.5 35 34 37 34 43 Z" fill="url(#liveclassAccent)" />
+  <!-- Live recording dot -->
+  <circle cx="17" cy="20" r="2.5" fill="#e74c3c" />
+</svg>
