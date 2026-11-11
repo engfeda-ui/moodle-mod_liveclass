@@ -44,7 +44,7 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_liveclass" TYPE="foreign" FIELDS="liveclassid" REFERENCES="liveclass" REFFIELDS="id"/>
+        <KEY NAME="fk_liveclass" TYPE="foreign" FIELDS="liveclassid" REFTABLE="liveclass" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="session_uuid" UNIQUE="true" FIELDS="session_uuid"/>
@@ -68,7 +68,7 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_session" TYPE="foreign" FIELDS="sessionid" REFERENCES="liveclass_sessions" REFFIELDS="id"/>
+        <KEY NAME="fk_session" TYPE="foreign" FIELDS="sessionid" REFTABLE="liveclass_sessions" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="user_session" UNIQUE="true" FIELDS="sessionid, userid"/>
@@ -86,7 +86,7 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_attendance" TYPE="foreign" FIELDS="attendanceid" REFERENCES="liveclass_attendance" REFFIELDS="id"/>
+        <KEY NAME="fk_attendance" TYPE="foreign" FIELDS="attendanceid" REFTABLE="liveclass_attendance" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="attendance_join" UNIQUE="false" FIELDS="attendanceid, join_time"/>
@@ -104,7 +104,7 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_session_logs" TYPE="foreign" FIELDS="sessionid" REFERENCES="liveclass_sessions" REFFIELDS="id"/>
+        <KEY NAME="fk_session_logs" TYPE="foreign" FIELDS="sessionid" REFTABLE="liveclass_sessions" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="user_event" UNIQUE="false" FIELDS="sessionid, userid, event_type"/>
@@ -122,7 +122,7 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_session_polls" TYPE="foreign" FIELDS="sessionid" REFERENCES="liveclass_sessions" REFFIELDS="id"/>
+        <KEY NAME="fk_session_polls" TYPE="foreign" FIELDS="sessionid" REFTABLE="liveclass_sessions" REFFIELDS="id"/>
       </KEYS>
     </TABLE>
 
@@ -136,7 +136,7 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_poll" TYPE="foreign" FIELDS="pollid" REFERENCES="liveclass_polls" REFFIELDS="id"/>
+        <KEY NAME="fk_poll" TYPE="foreign" FIELDS="pollid" REFTABLE="liveclass_polls" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="poll_user" UNIQUE="true" FIELDS="pollid, userid"/>
