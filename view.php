@@ -195,9 +195,9 @@ echo $OUTPUT->header();
                         <?php endif; ?>
                     </p>
                 </div>
-                <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+                <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0 flex-wrap">
                     <?php if (count($group_info->all_groups) > 1): ?>
-                        <div class="dropdown me-2">
+                        <div class="dropdown me-1">
                             <select id="group-filter-select" class="form-select form-select-sm" onchange="window.location.href='view.php?id=<?php echo $cm->id; ?>&group='+this.value">
                                 <?php foreach ($group_info->all_groups as $g): ?>
                                     <option value="<?php echo $g->id; ?>" <?php echo ($roster->selected_group_id == $g->id) ? 'selected' : ''; ?>>
@@ -207,7 +207,16 @@ echo $OUTPUT->header();
                             </select>
                         </div>
                     <?php endif; ?>
-                    <button id="btn-refresh-roster" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                    <a href="export.php?id=<?php echo $cm->id; ?>&group=<?php echo $roster->selected_group_id; ?>" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm" title="<?php echo get_string('export_csv', 'mod_liveclass'); ?>">
+                        <i class="fa fa-file-excel-o"></i> <?php echo get_string('export_attendance', 'mod_liveclass'); ?>
+                    </a>
+                    <button id="btn-mute-all" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm" title="<?php echo get_string('mute_all', 'mod_liveclass'); ?>">
+                        <i class="fa fa-microphone-slash"></i> <?php echo get_string('mute_all', 'mod_liveclass'); ?>
+                    </button>
+                    <button id="btn-open-poll-modal" class="btn btn-outline-info btn-sm rounded-pill px-3 shadow-sm" title="<?php echo get_string('quick_poll', 'mod_liveclass'); ?>">
+                        <i class="fa fa-bar-chart"></i> <?php echo get_string('quick_poll', 'mod_liveclass'); ?>
+                    </button>
+                    <button id="btn-refresh-roster" class="btn btn-outline-primary btn-sm rounded-pill px-3 shadow-sm">
                         <i class="fa fa-refresh" id="refresh-spinner"></i> <?php echo get_string('refresh_roster', 'mod_liveclass'); ?>
                     </button>
                 </div>
@@ -389,6 +398,50 @@ echo $OUTPUT->header();
             </div>
         </div>
 
+        <!-- Quick Poll Modal for Moderator -->
+        <div id="poll-modal" class="modal fade" tabindex="-1" style="display:none; background: rgba(0,0,0,0.6); z-index: 1080;">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="fa fa-bar-chart"></i> <?php echo get_string('quick_poll', 'mod_liveclass'); ?></h5>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-circle" id="btn-close-poll-modal">&times;</button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <form id="form-create-poll">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold"><?php echo get_string('poll_question', 'mod_liveclass'); ?></label>
+                                <input type="text" id="poll-input-question" class="form-control" value="هل أنت متابع ومستوعب للشرح الآن؟" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold"><?php echo get_string('poll_options', 'mod_liveclass'); ?></label>
+                                <textarea id="poll-input-options" class="form-control" rows="3">نعم، مستوعب تماماً
+أحتاج إعادة نقطة معينة
+لدي سؤال</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold"><?php echo get_string('poll_duration', 'mod_liveclass'); ?></label>
+                                <select id="poll-input-duration" class="form-select">
+                                    <option value="20">20 ثانية</option>
+                                    <option value="30" selected>30 ثانية</option>
+                                    <option value="45">45 ثانية</option>
+                                    <option value="60">60 ثانية</option>
+                                </select>
+                            </div>
+                            <button type="submit" id="btn-submit-create-poll" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">
+                                <i class="fa fa-paper-plane"></i> <?php echo get_string('create_poll', 'mod_liveclass'); ?>
+                            </button>
+                        </form>
+
+                        <!-- Poll Live Results Container -->
+                        <div id="poll-live-results" class="mt-4 pt-3 border-top d-none">
+                            <h6 class="fw-bold text-success mb-2"><i class="fa fa-pie-chart"></i> <?php echo get_string('poll_results', 'mod_liveclass'); ?> (<span id="poll-results-total">0</span> إجابة)</h6>
+                            <div id="poll-results-bars"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Command Center Live Sync Script -->
         <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -397,6 +450,106 @@ echo $OUTPUT->header();
             var cmid = <?php echo (int)$cm->id; ?>;
             var groupid = <?php echo (int)$roster->selected_group_id; ?>;
             var sesskey = '<?php echo sesskey(); ?>';
+
+            // Mute all button
+            var muteAllBtn = document.getElementById('btn-mute-all');
+            if (muteAllBtn) {
+                muteAllBtn.addEventListener('click', function() {
+                    if (confirm('<?php echo get_string('mute_all_confirm', 'mod_liveclass'); ?>')) {
+                        muteAllBtn.disabled = true;
+                        fetch('control.php?cmid=' + cmid + '&action=muteall&sesskey=' + sesskey)
+                            .then(function(r) { return r.json(); })
+                            .then(function(res) {
+                                muteAllBtn.disabled = false;
+                                if (res.status === 'success') {
+                                    alert(res.message);
+                                }
+                            })
+                            .catch(function() {
+                                muteAllBtn.disabled = false;
+                            });
+                    }
+                });
+            }
+
+            // Poll modal handlers
+            var pollModal = document.getElementById('poll-modal');
+            var openPollBtn = document.getElementById('btn-open-poll-modal');
+            var closePollBtn = document.getElementById('btn-close-poll-modal');
+
+            if (openPollBtn && pollModal) {
+                openPollBtn.addEventListener('click', function() {
+                    pollModal.style.display = 'block';
+                    pollModal.classList.add('show');
+                });
+            }
+            if (closePollBtn && pollModal) {
+                closePollBtn.addEventListener('click', function() {
+                    pollModal.style.display = 'none';
+                    pollModal.classList.remove('show');
+                });
+            }
+
+            // Launch poll submit
+            var formPoll = document.getElementById('form-create-poll');
+            var currentPollId = 0;
+            var pollResultsTimer = null;
+
+            if (formPoll) {
+                formPoll.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var q = document.getElementById('poll-input-question').value;
+                    var opts = document.getElementById('poll-input-options').value;
+                    var dur = document.getElementById('poll-input-duration').value;
+                    var submitBtn = document.getElementById('btn-submit-create-poll');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> جاري إطلاق الاستطلاع...';
+
+                    fetch('poll_api.php?action=create&cmid=' + cmid + '&question=' + encodeURIComponent(q) + '&options=' + encodeURIComponent(opts) + '&duration=' + dur + '&sesskey=' + sesskey, {
+                        method: 'POST'
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> <?php echo get_string('create_poll', 'mod_liveclass'); ?>';
+                        if (res.status === 'success' && res.poll) {
+                            currentPollId = res.poll.id;
+                            document.getElementById('poll-live-results').classList.remove('d-none');
+                            pollResults();
+                            if (pollResultsTimer) clearInterval(pollResultsTimer);
+                            pollResultsTimer = setInterval(pollResults, 3000);
+                        }
+                    })
+                    .catch(function() {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> <?php echo get_string('create_poll', 'mod_liveclass'); ?>';
+                    });
+                });
+            }
+
+            function pollResults() {
+                if (!currentPollId) return;
+                fetch('poll_api.php?action=results&cmid=' + cmid + '&poll_id=' + currentPollId + '&sesskey=' + sesskey)
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        if (res.status === 'success') {
+                            document.getElementById('poll-results-total').textContent = res.total;
+                            var barsHtml = '';
+                            res.options.forEach(function(opt) {
+                                var cnt = res.counts[opt] || 0;
+                                var pct = res.total > 0 ? Math.round((cnt / res.total) * 100) : 0;
+                                barsHtml += '<div class="mb-2">' +
+                                    '<div class="d-flex justify-content-between small fw-bold mb-1">' +
+                                    '<span>' + opt + '</span><span>' + cnt + ' (' + pct + '%)</span>' +
+                                    '</div>' +
+                                    '<div class="progress" style="height: 10px;">' +
+                                    '<div class="progress-bar bg-success" style="width: ' + pct + '%;"></div>' +
+                                    '</div></div>';
+                            });
+                            document.getElementById('poll-results-bars').innerHTML = barsHtml;
+                        }
+                    });
+            }
 
             // Function to reload roster data
             function refreshRoster() {
@@ -456,6 +609,69 @@ echo $OUTPUT->header();
         });
         </script>
     <?php endif; ?>
+
+    <!-- Session Recordings & Archive Card -->
+    <?php
+    $past_sessions = $DB->get_records_select('liveclass_sessions', 'liveclassid = ? ORDER BY id DESC', [$liveclass->id]);
+    ?>
+    <div class="card shadow-sm border-0 mt-4 mb-4">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-dark"><i class="fa fa-history text-secondary"></i> <?php echo get_string('recordings_archive', 'mod_liveclass'); ?></h5>
+        </div>
+        <div class="card-body p-0">
+            <?php if (empty($past_sessions)): ?>
+                <div class="p-4 text-center text-muted">
+                    <i class="fa fa-video-camera fa-2x mb-2 text-secondary opacity-50"></i>
+                    <p class="mb-0"><?php echo get_string('no_recordings_yet', 'mod_liveclass'); ?></p>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th><?php echo get_string('session_date', 'mod_liveclass'); ?></th>
+                                <th><?php echo get_string('session_duration', 'mod_liveclass'); ?></th>
+                                <th><?php echo get_string('session_attendees', 'mod_liveclass'); ?></th>
+                                <th><?php echo get_string('recording_status', 'mod_liveclass'); ?></th>
+                                <th class="text-center"><?php echo get_string('actions'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php $s_idx = 1; foreach ($past_sessions as $ps): 
+                                $duration_str = ($ps->actual_end > $ps->actual_start) 
+                                    ? round(($ps->actual_end - $ps->actual_start) / 60) . ' دقيقة' 
+                                    : ($ps->status === 'active' ? '<span class="badge bg-success">نشطة الآن</span>' : '-');
+                            ?>
+                                <tr>
+                                    <td><?php echo $s_idx++; ?></td>
+                                    <td><strong><?php echo userdate($ps->timecreated ?: $ps->actual_start); ?></strong></td>
+                                    <td><?php echo $duration_str; ?></td>
+                                    <td><span class="badge bg-primary rounded-pill"><?php echo $ps->total_participants; ?></span></td>
+                                    <td>
+                                        <?php if (!empty($ps->recording_url)): ?>
+                                            <span class="badge bg-success"><i class="fa fa-check"></i> <?php echo get_string('recording_ready', 'mod_liveclass'); ?></span>
+                                        <?php else: ?>
+                                            <span class="badge bg-light text-muted border"><?php echo get_string('recording_none', 'mod_liveclass'); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center">
+                                        <?php if (!empty($ps->recording_url)): ?>
+                                            <a href="<?php echo s($ps->recording_url); ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                                                <i class="fa fa-play"></i> <?php echo get_string('play_recording', 'mod_liveclass'); ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="text-muted small">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>
 
 <?php

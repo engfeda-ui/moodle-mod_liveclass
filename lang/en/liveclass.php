@@ -110,3 +110,30 @@ $string['absent_offline_desc'] = 'Has not accessed Moodle or entered the session
 $string['allowed_badge'] = 'Allowed';
 $string['restricted_badge'] = 'Restricted';
 
+// Advanced Features Strings.
+$string['export_attendance'] = 'Export Attendance';
+$string['export_csv'] = 'Export as CSV (Excel)';
+$string['mute_all'] = 'Mute All Participants';
+$string['mute_all_confirm'] = 'Are you sure you want to mute all student microphones?';
+$string['mute_all_success'] = 'All student microphones have been muted';
+$string['muted_by_instructor'] = 'Your microphone was muted by the instructor';
+$string['quick_poll'] = 'Spontaneous Poll / Presence Check';
+$string['create_poll'] = 'Launch Poll';
+$string['poll_question'] = 'Poll Question';
+$string['poll_options'] = 'Options (one per line)';
+$string['poll_duration'] = 'Timer (seconds)';
+$string['poll_active_title'] = 'Active Presence Verification';
+$string['poll_submit'] = 'Submit Answer';
+$string['poll_answered'] = 'Thank you! Your presence has been confirmed.';
+$string['poll_results'] = 'Poll Results';
+$string['poll_total_responses'] = 'Total Responses';
+$string['recordings_archive'] = 'Class Recordings & Archive';
+$string['no_recordings_yet'] = 'No recorded sessions available for this class.';
+$string['play_recording'] = 'Watch Recording';
+$string['session_date'] = 'Date';
+$string['session_duration'] = 'Duration';
+$string['session_attendees'] = 'Attendees';
+$string['recording_status'] = 'Recording';
+$string['recording_ready'] = 'Available';
+$string['recording_none'] = 'Not Recorded';
+

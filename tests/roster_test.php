@@ -47,3 +47,4 @@ if (in_array(10, $nested_extracted) && in_array(20, $nested_extracted) && count(
     echo "FAIL: Nested group extraction failed.\n";
     exit(1);
 }
+

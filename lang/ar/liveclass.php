@@ -110,3 +110,30 @@ $string['absent_offline_desc'] = 'لم يسجل دخوله إلى المنصة �
 $string['allowed_badge'] = 'مسموح لها';
 $string['restricted_badge'] = 'غير مصرح لها';
 
+// Advanced Features Strings.
+$string['export_attendance'] = 'تصدير كشف الحضور';
+$string['export_csv'] = 'تصدير كملف إكسل (CSV)';
+$string['mute_all'] = 'كتم صوت الجميع';
+$string['mute_all_confirm'] = 'هل أنت متأكد من كتم صوت الميكروفون لجميع المتدربين؟';
+$string['mute_all_success'] = 'تم كتم صوت جميع المتدربين بنجاح';
+$string['muted_by_instructor'] = 'تم كتم صوت الميكروفون الخاص بك من قِبل المحاضر';
+$string['quick_poll'] = 'استطلاع خاطف / إثبات تواجد';
+$string['create_poll'] = 'إطلاق الاستطلاع';
+$string['poll_question'] = 'سؤال الاستطلاع';
+$string['poll_options'] = 'خيارات الإجابة (خيار في كل سطر)';
+$string['poll_duration'] = 'مدة الإجابة (بالثواني)';
+$string['poll_active_title'] = 'تحقق التواجد والتفاعل الفعلي';
+$string['poll_submit'] = 'تأكيد الإجابة';
+$string['poll_answered'] = 'شكراً لك! تم تأكيد تواجدك وتفاعلك في الحصة بنجاح.';
+$string['poll_results'] = 'نتائج الاستطلاع';
+$string['poll_total_responses'] = 'إجمالي الإجابات';
+$string['recordings_archive'] = 'سجل وتسجيلات الجلسات';
+$string['no_recordings_yet'] = 'لا توجد تسجيلات متوفرة لهذه الحصة بعد.';
+$string['play_recording'] = 'مشاهدة التسجيل';
+$string['session_date'] = 'التاريخ';
+$string['session_duration'] = 'مدة الجلسة';
+$string['session_attendees'] = 'عدد الحضور';
+$string['recording_status'] = 'حالة التسجيل';
+$string['recording_ready'] = 'جاهز للمشاهدة';
+$string['recording_none'] = 'غير مسجل';
+

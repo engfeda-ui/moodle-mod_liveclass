@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.4-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.5-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,12 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.0.5] - 2026-11-11
+- Added **Attendance CSV/Excel Export** with UTF-8 BOM encoding for seamless Arabic Excel compatibility (`export.php`).
+- Implemented **Mute All Participants** control for instructors with client broadcast audio track disabling (`control.php`, `amd/src/classroom.js`).
+- Integrated **Spontaneous In-Class Attention Polls** with real-time countdown bar and instructor result aggregation (`poll_api.php`, `liveclass_polls`, `liveclass_poll_answers`).
+- Added **Session Recordings & History Archive** component in classroom view with attendee counts and playback links.
 
 ### [v1.0.4] - 2026-11-11
 - Refined database column mappings for `liveclass_intervals` (`leave_time`) and `liveclass_attendance` (`total_duration_seconds`, `attendance_percentage`).
