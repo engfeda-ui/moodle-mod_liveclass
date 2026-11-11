@@ -118,10 +118,13 @@ class roster_manager {
         }
 
         // Fetch students.
+        $userfieldsapi = \core_user\fields::for_userpic()->including('lastaccess', 'username', 'email');
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
+
         if ($selected_group_id > 0) {
-            $members = groups_get_members($selected_group_id, 'u.id, u.username, u.firstname, u.lastname, u.email, u.picture, u.imagealt, u.lastaccess, u.email');
+            $members = groups_get_members($selected_group_id, $userfields);
         } else {
-            $members = get_enrolled_users($context, 'mod/liveclass:join', 0, 'u.id, u.username, u.firstname, u.lastname, u.email, u.picture, u.imagealt, u.lastaccess, u.email');
+            $members = get_enrolled_users($context, 'mod/liveclass:join', 0, $userfields);
         }
 
         // Get active/latest session.
@@ -146,14 +149,14 @@ class roster_manager {
                 $attendance_records[$row->userid] = $row;
             }
 
-            // Find currently active intervals (leavetime is null or left within last 90 seconds).
+            // Find currently active intervals (leave_time is null/0 or left within last 90 seconds).
             $recent_limit = time() - 90;
             $active_users = $DB->get_records_sql("
                 SELECT DISTINCT a.userid 
                   FROM {liveclass_intervals} i
                   JOIN {liveclass_attendance} a ON a.id = i.attendanceid
                  WHERE a.sessionid = :sessionid
-                   AND (i.leavetime IS NULL OR i.leavetime > :recent)
+                   AND (i.leave_time IS NULL OR i.leave_time = 0 OR i.leave_time > :recent)
             ", ['sessionid' => $session_id, 'recent' => $recent_limit]);
 
             foreach ($active_users as $au) {
@@ -198,8 +201,8 @@ class roster_manager {
             $is_connected_now = isset($active_interval_userids[$userid]);
             $tab_switches = isset($tab_switch_counts[$userid]) ? $tab_switch_counts[$userid] : 0;
 
-            $duration = $att ? (int)$att->totalduration : 0;
-            $percent  = $att ? (int)$att->attendancepercent : 0;
+            $duration = $att ? (int)$att->total_duration_seconds : 0;
+            $percent  = $att ? (int)$att->attendance_percentage : 0;
 
             // Classify presence state.
             $is_in_class = false;
@@ -237,9 +240,7 @@ class roster_manager {
             $duration_mins = round($duration / 60);
 
             // User avatar URL.
-            $userpic = new \user_picture($user);
-            $userpic->size = 40;
-            $avatar_url = $userpic->get_url(\moodle_page::instance())->out();
+            $avatar_url = (new \moodle_url('/user/pix.php/' . $userid . '/f2.jpg'))->out(false);
 
             $students[] = (object)[
                 'id'                 => $userid,

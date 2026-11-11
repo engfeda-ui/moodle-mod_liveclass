@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.3-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.4-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,10 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.0.4] - 2026-11-11
+- Refined database column mappings for `liveclass_intervals` (`leave_time`) and `liveclass_attendance` (`total_duration_seconds`, `attendance_percentage`).
+- Switched user avatar generator to resilient Moodle pix URL for seamless AJAX and CLI compatibility.
 
 ### [v1.0.3] - 2026-11-11
 - Added **Live Roster & Group Presence Command Center** for instructors (`classes/roster_manager.php`).
