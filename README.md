@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.2-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.3-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,13 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.0.3] - 2026-11-11
+- Added **Live Roster & Group Presence Command Center** for instructors (`classes/roster_manager.php`).
+- Integrated automated group restriction detection (parses Moodle `availability` JSON & group mode to display allowed vs restricted cohorts).
+- Added tripartite presence classification: In Class (🟢), Online on Moodle outside class (🟡), and Absent (🔴).
+- Added instant student nudge notification system (`nudge.php`, `db/messages.php`).
+- Implemented real-time AJAX auto-refresh and command center statistics cards (`get_roster.php`).
 
 ### [v1.0.2] - 2026-11-11
 - Added official Moodle 4.x activity icons (`pix/monologo.svg` and `pix/icon.svg`).

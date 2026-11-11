@@ -75,3 +75,37 @@ $string['min_attendance_req'] = 'Required Attendance';
 $string['attendance_status'] = 'Attendance Progress';
 $string['attendance_auto_tracked_desc'] = 'Your active participation time is automatically monitored by the LiveKit engine.';
 
+// Command Center & Roster Strings.
+$string['roster_command_center'] = 'Live Roster & Presence Command Center';
+$string['target_group'] = 'Target Group';
+$string['allowed_groups'] = 'Allowed Groups';
+$string['restricted_groups'] = 'Restricted Groups';
+$string['no_group_restriction'] = 'All Enrolled Students (No Group Restriction)';
+$string['status_in_class'] = 'In Class Now';
+$string['status_online_moodle'] = 'Online on Moodle (Not in Class)';
+$string['status_absent'] = 'Absent / Offline';
+$string['total_students'] = 'Total Students';
+$string['in_class_count'] = 'In Class';
+$string['online_moodle_count'] = 'Active on Moodle';
+$string['absent_count'] = 'Absent';
+$string['student_name'] = 'Student';
+$string['student_id'] = 'Student ID';
+$string['attendance_progress_col'] = 'Attendance';
+$string['last_seen_moodle'] = 'Moodle Presence';
+$string['tab_switches_col'] = 'Focus Alerts';
+$string['action_nudge'] = 'Nudge Student';
+$string['refresh_roster'] = 'Live Refresh';
+$string['group_filter'] = 'Filter Group';
+$string['all_cohort_members'] = 'Group Roster';
+$string['online_now'] = 'Active Now';
+$string['min_ago'] = '{$a} min ago';
+$string['hours_ago'] = '{$a} hrs ago';
+$string['never_logged'] = 'Never logged in';
+$string['nudge_sent'] = 'Nudge sent successfully';
+$string['nudge_message_body'] = 'Urgent: Virtual Class "{$a->classname}" is currently in session. Please join immediately: {$a->url}';
+$string['active_in_class_desc'] = 'Currently connected and participating in WebRTC room';
+$string['online_moodle_desc'] = 'Logged into Moodle but has not entered the virtual class';
+$string['absent_offline_desc'] = 'Has not accessed Moodle or entered the session';
+$string['allowed_badge'] = 'Allowed';
+$string['restricted_badge'] = 'Restricted';
+

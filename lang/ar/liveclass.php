@@ -75,3 +75,37 @@ $string['min_attendance_req'] = 'نسبة الحضور المطلوبة';
 $string['attendance_status'] = 'مستوى إثبات الحضور';
 $string['attendance_auto_tracked_desc'] = 'يتم رصد وحساب دقائق حضورك الفعلي آلياً وبدقة عبر محرك الحضور الذكي.';
 
+// Command Center & Roster Strings.
+$string['roster_command_center'] = 'مركز متابعة الحضور وتواجد المجموعات اللحظي';
+$string['target_group'] = 'المجموعة المستهدفة';
+$string['allowed_groups'] = 'المجموعات المصرح لها بالحضور';
+$string['restricted_groups'] = 'المجموعات غير المصرح لها (مقيدة)';
+$string['no_group_restriction'] = 'جميع المتدربين المسجلين (بدون تقييد بمجموعة)';
+$string['status_in_class'] = 'في المحاضرة الآن';
+$string['status_online_moodle'] = 'فاتح مودل (خارج المحاضرة)';
+$string['status_absent'] = 'غائب / غير متصل';
+$string['total_students'] = 'إجمالي طلاب المجموعة';
+$string['in_class_count'] = 'داخل المحاضرة';
+$string['online_moodle_count'] = 'نشط على مودل';
+$string['absent_count'] = 'غائب';
+$string['student_name'] = 'المتدرب';
+$string['student_id'] = 'الرقم التدريبي';
+$string['attendance_progress_col'] = 'نسبة الحضور';
+$string['last_seen_moodle'] = 'التواجد على مودل';
+$string['tab_switches_col'] = 'مغادرة التبويب';
+$string['action_nudge'] = 'تنبيه المتدرب';
+$string['refresh_roster'] = 'تحديث حي';
+$string['group_filter'] = 'تصفية حسب المجموعة';
+$string['all_cohort_members'] = 'قائمة طلاب المجموعة';
+$string['online_now'] = 'نشط الآن';
+$string['min_ago'] = 'منذ {$a} دقيقة';
+$string['hours_ago'] = 'منذ {$a} ساعة';
+$string['never_logged'] = 'لم يسجل دخول';
+$string['nudge_sent'] = 'تم إرسال رسالة التنبيه للمتدرب بنجاح';
+$string['nudge_message_body'] = 'تنبيه عاجل: المحاضرة الافتراضية "{$a->classname}" منعقدة الآن، وأنت متواجد على المنصة ولكن لم تنضم بعد. يرجى الدخول فوراً: {$a->url}';
+$string['active_in_class_desc'] = 'متصل حالياً ويشارك داخل غرفة البث الافتراضية';
+$string['online_moodle_desc'] = 'سجل دخوله إلى مودل ولكنه لم ينضم للحصة بعد';
+$string['absent_offline_desc'] = 'لم يسجل دخوله إلى المنصة أو يدخل الحصة';
+$string['allowed_badge'] = 'مسموح لها';
+$string['restricted_badge'] = 'غير مصرح لها';
+
