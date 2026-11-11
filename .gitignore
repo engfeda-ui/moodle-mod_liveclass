@@ -9,4 +9,5 @@ Thumbs.db
 /.vscode/
 /node_modules/
 /vendor/
+deploy.ps1
 
