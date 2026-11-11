@@ -1,0 +1,15 @@
+{
+  "name": "mod_liveclass",
+  "version": "1.0.6",
+  "description": "LiveClass Virtual Classroom Activity Module for Moodle powered by LiveKit SFU",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "test:gates": "node tests/run-all.js",
+    "check:syntax": "node tests/syntax-check.js",
+    "check:contract": "node tests/contract-check.js",
+    "check:security": "php tests/security_audit_test.php",
+    "check:i18n": "php tests/i18n_parity_test.php",
+    "smoke": "node tests/smoke.js"
+  },
+  "private": true
+}

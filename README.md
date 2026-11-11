@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.6-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.7-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,17 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.0.7] - 2026-11-12
+- Added **GitHub Actions CI/CD Workflow** (`.github/workflows/ci.yml`) featuring dual-stage verification: Antigravity Zero-Dependency Quality Gates & Moodle Plugin CI.
+- Implemented **Comprehensive Test Suite** (`tests/`) covering 8 critical verification dimensions:
+  - `tests/syntax-check.js`: Automated recursive PHP syntax check (`php -l`) across all plugin source files.
+  - `tests/contract-check.js`: Moodle 4.x/5.x activity contract validation, capability mappings, and zero direct `$_SESSION` usage.
+  - `tests/security_audit_test.php`: Automated CSRF protection, RBAC capability gates, IDOR boundaries, and LiveKit Webhook HMAC-SHA256 signature verification.
+  - `tests/smoke.js`: Asset integrity, scoped CSS rules, and absence of hardcoded secrets.
+  - `tests/liveclass_test.php`: Full PHPUnit testcase extending `advanced_testcase` for automated Moodle DB lifecycle testing.
+  - `tests/run-all.js`: Master quality gates runner enforcing Pillar 4 Harness Engineering.
+- Added `package.json` for npm test scripts and `.gitattributes` for cross-platform LF line ending normalization.
 
 ### [v1.0.6] - 2026-11-12
 - Added **Manual Moderator Recording Toggle Control** (`#btn-toggle-recording` in toolbar) with live pulsing `REC` status badge and audit logging (`control.php`, `amd/src/classroom.js`).

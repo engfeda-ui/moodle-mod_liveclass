@@ -37,6 +37,22 @@ if (empty($raw_body)) {
     exit;
 }
 
+// LiveKit Webhook HMAC-SHA256 Token Verification.
+$api_secret = get_config('mod_liveclass', 'api_secret');
+$auth_header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+if (!empty($api_secret) && !empty($auth_header)) {
+    $token_parts = explode('.', $auth_header);
+    if (count($token_parts) === 3) {
+        $expected_sig = hash_hmac('sha256', $token_parts[0] . '.' . $token_parts[1], $api_secret, true);
+        $provided_sig = \mod_liveclass\token_factory::base64url_decode($token_parts[2]);
+        if (!hash_equals($expected_sig, $provided_sig)) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid webhook signature']);
+            exit;
+        }
+    }
+}
+
 $data = json_decode($raw_body, true);
 if (!$data || !isset($data['event'])) {
     http_response_code(400);
