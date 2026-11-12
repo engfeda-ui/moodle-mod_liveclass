@@ -1,13 +1,55 @@
-# Moodle Plugin Git Ignore
-*~
-*.swp
-*.bak
-.DS_Store
+# Operating System files
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+desktop.ini
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.zcode/
 /nbproject/
-/.idea/
-/.vscode/
 /node_modules/
 /vendor/
-deploy.ps1
 
+# Local Agent / AI Rules & State
+.agents/
+AGENTS.md
+*-Mahmoud*
+*-Mahmoud.*
+graphify-out/
+
+# Secrets and Local Configurations
+.env
+.env.*
+*.key
+*.pem
+*.id_rsa
+
+# Log and Temporary files
+*.log
+*.tmp
+*.bak
+temp/
+tmp/
+
+# Packaging and Build Artifacts
+*.zip
+*.tar.gz
+packaged_plugins/
+
+# Deploy Scripts & Infrastructure Secrets
+*deploy*.ps1
+deploy*.ps1
+scripts/deploy*.ps1

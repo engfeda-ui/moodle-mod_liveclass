@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.8-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.9-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,10 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.0.9] - 2026-11-12
+- Untracked internal agent directive files (`AGENTS.md`) from repository index.
+- Comprehensive `.gitignore` overhaul aligning with institutional standards (ignoring `.agents/`, `AGENTS.md`, `*-Mahmoud*`, `graphify-out/`, `.env`, `*.key`, `*.pem`, `*.id_rsa`, deploy scripts, and build artifacts).
 
 ### [v1.0.8] - 2026-11-12
 - Added standard Moodle course activities list view (`index.php`) satisfying `moodle-plugin-ci validate` requirements.

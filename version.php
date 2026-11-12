@@ -24,9 +24,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2026111202;       // The current module version (Date: YYYYMMDDXX).
+$plugin->version = 2026111203;       // The current module version (Date: YYYYMMDDXX).
 $plugin->requires = 2022041900;       // Requires Moodle 4.0+.
 $plugin->component = 'mod_liveclass';   // Full name of the plugin (used for diagnostics).
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = 'v1.0.8 (Sanad EWA Edition)';
+$plugin->release = 'v1.0.9 (Sanad EWA Edition)';
 
