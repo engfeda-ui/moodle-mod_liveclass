@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.7-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.0.8-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,12 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.0.8] - 2026-11-12
+- Added standard Moodle course activities list view (`index.php`) satisfying `moodle-plugin-ci validate` requirements.
+- Guarded standalone test scripts with `PHPUNIT_TEST` environment check to eliminate duplicate class and constant definitions during Moodle PHPUnit scans.
+- Fixed `token_factory::create_token` invocation in PHPUnit test suite (`tests/liveclass_test.php`).
+- Updated contract and smoke checks to assert presence of `index.php`.
 
 ### [v1.0.7] - 2026-11-12
 - Added **GitHub Actions CI/CD Workflow** (`.github/workflows/ci.yml`) featuring dual-stage verification: Antigravity Zero-Dependency Quality Gates & Moodle Plugin CI.

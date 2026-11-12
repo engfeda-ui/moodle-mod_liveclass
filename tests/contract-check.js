@@ -44,7 +44,10 @@ if (fs.existsSync(libFile)) {
   check("Declares MOD_PURPOSE_COMMUNICATION", libSrc.includes("MOD_PURPOSE_COMMUNICATION"));
 }
 
-// 3. Check mod_form.php
+// 3. Check mod_form.php and index.php
+const indexFile = path.join(ROOT, "index.php");
+check("index.php exists (Moodle activity list view)", fs.existsSync(indexFile));
+
 const formFile = path.join(ROOT, "mod_form.php");
 check("mod_form.php exists", fs.existsSync(formFile));
 if (fs.existsSync(formFile)) {

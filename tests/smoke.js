@@ -25,6 +25,7 @@ const criticalFiles = [
   "lib.php",
   "version.php",
   "view.php",
+  "index.php",
   "mod_form.php",
   "settings.php",
   "control.php",

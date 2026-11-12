@@ -16,6 +16,13 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+    return;
+}
+if (!defined('MOODLE_INTERNAL')) {
+    define('MOODLE_INTERNAL', true);
+}
+
 $root = dirname(__DIR__);
 $errors = [];
 

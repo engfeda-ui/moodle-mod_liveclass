@@ -3,12 +3,19 @@
  * Zero-dependency unit test for LiveKit token factory.
  */
 
-define('MOODLE_INTERNAL', true);
+if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+    return;
+}
+if (!defined('MOODLE_INTERNAL')) {
+    define('MOODLE_INTERNAL', true);
+}
 
-function get_config($plugin, $key) {
-    if ($key === 'livekit_api_key') return 'TEST_KEY';
-    if ($key === 'livekit_api_secret') return 'TEST_SECRET_ABC123';
-    return null;
+if (!function_exists('get_config')) {
+    function get_config($plugin, $key) {
+        if ($key === 'livekit_api_key') return 'TEST_KEY';
+        if ($key === 'livekit_api_secret') return 'TEST_SECRET_ABC123';
+        return null;
+    }
 }
 
 require_once(__DIR__ . '/../classes/token_factory.php');

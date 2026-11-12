@@ -3,7 +3,12 @@
  * Zero-dependency test verifying language parity between English and Arabic.
  */
 
-define('MOODLE_INTERNAL', true);
+if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+    return;
+}
+if (!defined('MOODLE_INTERNAL')) {
+    define('MOODLE_INTERNAL', true);
+}
 
 $en_file = __DIR__ . '/../lang/en/liveclass.php';
 $ar_file = __DIR__ . '/../lang/ar/liveclass.php';

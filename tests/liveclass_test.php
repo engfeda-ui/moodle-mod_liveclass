@@ -95,9 +95,7 @@ class liveclass_test extends advanced_testcase {
     }
 
     public function test_token_factory() {
-        $jwt = \mod_liveclass\token_factory::create(
-            'api_test_key',
-            'api_test_secret_12345678901234567890',
+        $jwt = \mod_liveclass\token_factory::create_token(
             'test_room',
             'user_123',
             'Mahmoud Salem',

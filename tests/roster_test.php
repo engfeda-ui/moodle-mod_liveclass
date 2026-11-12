@@ -2,8 +2,15 @@
 /**
  * Test group restriction parser logic.
  */
-define('CLI_SCRIPT', true);
-define('MOODLE_INTERNAL', true);
+if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+    return;
+}
+if (!defined('CLI_SCRIPT')) {
+    define('CLI_SCRIPT', true);
+}
+if (!defined('MOODLE_INTERNAL')) {
+    define('MOODLE_INTERNAL', true);
+}
 
 function test_extract_groups($availability_json) {
     if (empty($availability_json)) {

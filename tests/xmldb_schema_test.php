@@ -3,6 +3,13 @@
  * Zero-dependency XMLDB schema integrity test for db/install.xml.
  */
 
+if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+    return;
+}
+if (!defined('MOODLE_INTERNAL')) {
+    define('MOODLE_INTERNAL', true);
+}
+
 $xml_file = __DIR__ . '/../db/install.xml';
 
 if (!file_exists($xml_file)) {
