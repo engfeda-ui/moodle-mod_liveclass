@@ -144,4 +144,6 @@ $string['recording_stopped_msg'] = 'Session recording has been stopped';
 $string['instructor'] = 'Instructor';
 $string['classmates_in_room'] = 'Classmates in Room';
 $string['joined_classroom'] = 'Connected to Classroom';
+$string['gallery_view'] = 'Gallery View';
+$string['speaker_view'] = 'Speaker View';
 

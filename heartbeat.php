@@ -131,12 +131,40 @@ switch ($action) {
             'recent3'   => $recent_threshold
         ]);
 
+        // Fetch roster and participants state for live Gallery Grid.
+        $roster = \mod_liveclass\roster_manager::get_roster_data($cm, $liveclass);
+        $raised_hands = $DB->get_records_sql("
+            SELECT p1.userid 
+              FROM {liveclass_presence_logs} p1
+             WHERE p1.sessionid = :sid 
+               AND p1.id = (SELECT MAX(p2.id) FROM {liveclass_presence_logs} p2 
+                             WHERE p2.sessionid = :sid2 AND p2.userid = p1.userid 
+                               AND p2.event_type IN ('raise_hand', 'lower_hand'))
+               AND p1.event_type = 'raise_hand'
+        ", ['sid' => $sessionid, 'sid2' => $sessionid]);
+
+        $participants = [];
+        if (!empty($roster->students)) {
+            foreach ($roster->students as $st) {
+                $participants[] = [
+                    'id'         => (int)$st->id,
+                    'fullname'   => $st->fullname,
+                    'avatar'     => $st->avatar_url,
+                    'status'     => $st->status,
+                    'percent'    => (int)$st->percent,
+                    'duration'   => (int)$st->duration_mins,
+                    'handRaised' => isset($raised_hands[$st->id])
+                ];
+            }
+        }
+
         echo json_encode([
             'status'         => 'success',
             'duration'       => $result['duration_seconds'] ?? 0,
             'percentage'     => $result['attendance_percent'] ?? 0,
             'presence_status'=> $result['presence_status'] ?? 'active',
             'active_students'=> $active_count,
+            'participants'   => $participants,
             'must_mute'      => (bool)$recent_mute,
             'is_recording'   => (bool)$is_recording,
             'server_time'    => $now

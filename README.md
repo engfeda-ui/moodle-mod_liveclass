@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.1-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,12 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.1] - 2026-11-15
+- **Live Gallery Grid Viewport (`#gallery-grid`)**: Added full responsive participant gallery inside the classroom viewport displaying each attending student as an interactive tile with official avatar, full name, live presence badge (`🟢 متصل`), active mic icon, attendance percentage, and real-time hand raise (`✋`) badge.
+- **Speaker vs Gallery Layout Switcher**: Integrated a dedicated toggle button (`#btn-toggle-layout`) in the toolbar allowing one-click switching between Lecture/Speaker Mode (large presenter screen + attendee filmstrip) and Gallery Grid Mode (full multi-tile grid).
+- **Live Filmstrip for Speaker Mode**: Added horizontal attendee preview rail (`#speaker-filmstrip`) at the base of the presentation stage displaying thumbnails and presence of connected learners.
+- **Roster & Hand-Raise Telemetry in Heartbeat**: Enhanced `heartbeat.php` to broadcast active participants list and latest hand-raise statuses on every cycle.
 
 ### [v1.1.0] - 2026-11-15
 - **Toolbar Icon Alignment & Overflow Fix**: Refactored `.liveclass-toolbar` styling and HTML markup, separating circular buttons (46x46px) and text-labeled pill buttons (`width: auto`, `padding: 0 18px`) into semantic flex groups to eliminate overlaps between "Mute All", "Recording", and "Leave" buttons.

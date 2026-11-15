@@ -144,4 +144,6 @@ $string['recording_stopped_msg'] = 'تم إيقاف التسجيل بنجاح';
 $string['instructor'] = 'المحاضر';
 $string['classmates_in_room'] = 'المتواجدون في القاعة';
 $string['joined_classroom'] = 'متصل بالقاعة الافتراضية';
+$string['gallery_view'] = 'عرض الشبكة';
+$string['speaker_view'] = 'وضع الشرح';
 

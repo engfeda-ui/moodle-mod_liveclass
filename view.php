@@ -110,6 +110,7 @@ $PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
     'token'            => $token,
     'roomName'         => $liveclass->room_name,
     'displayName'      => $displayname,
+    'currentUserId'    => (int)$USER->id,
     'instructorName'   => $instructor_name ?: get_string('instructor', 'mod_liveclass'),
     'isModerator'      => (bool)$is_moderator,
     'sessionId'        => (int)$session_id,

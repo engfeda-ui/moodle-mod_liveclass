@@ -20,6 +20,8 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             this.isHandRaised = false;
             this.tabSwitchCount = 0;
             this.elapsedSeconds = 0;
+            this.layoutMode = 'speaker'; // 'speaker' or 'gallery'
+            this.participants = [];
             this.timerInterval = null;
             this.heartbeatInterval = null;
             this.pollInterval = null;
@@ -63,8 +65,8 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             const stage = $('#liveclass-stage');
             const instructorLabel = self.config.instructorName || 'المدرب';
 
-            // Distinct Viewport layouts: Moderator vs Student
-            const mainViewportHtml = self.config.isModerator ? `
+            // Distinct Viewport layouts: Moderator vs Student in Speaker Mode
+            const speakerModeContentHtml = self.config.isModerator ? `
                 <div id="video-grid" class="w-100 h-100 d-flex flex-wrap justify-content-center align-items-center p-2 gap-2 position-relative">
                     <div class="video-card local-video-card position-relative bg-dark rounded overflow-hidden shadow" style="width: 100%; max-width: 900px; height: 500px;">
                         <video id="local-video" class="w-100 h-100" style="object-fit: cover;" autoplay playsinline muted></video>
@@ -145,7 +147,16 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
                     <!-- Main Media Viewport -->
                     <div class="liveclass-media-viewport flex-grow-1 d-flex position-relative bg-black">
-                        ${mainViewportHtml}
+                        <!-- Mode A: Speaker View Container -->
+                        <div id="container-speaker" class="w-100 h-100 position-relative d-flex justify-content-center align-items-center">
+                            ${speakerModeContentHtml}
+                            <div id="speaker-filmstrip" class="attendees-filmstrip d-none"></div>
+                        </div>
+
+                        <!-- Mode B: Gallery Grid View Container -->
+                        <div id="container-gallery" class="w-100 h-100 position-relative d-none">
+                            <div id="gallery-grid" class="gallery-grid-container"></div>
+                        </div>
 
                         <!-- Spontaneous Poll Overlay for Students -->
                         <div id="poll-overlay" class="position-absolute top-50 start-50 translate-middle p-4 bg-white text-dark rounded-3 shadow-lg border border-warning d-none" style="z-index: 1060; width: 90%; max-width: 480px;">
@@ -194,7 +205,14 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                             </button>
                         </div>
 
-                        <!-- Group 2: Moderator Special Commands -->
+                        <!-- Group 2: Layout View Switcher (Speaker vs Gallery Grid) -->
+                        <div class="toolbar-group">
+                            <button id="btn-toggle-layout" class="btn btn-outline-info rounded-pill shadow-sm" title="تبديل طريقة العرض (شرح / شبكة المتدربين)">
+                                <i class="fa fa-th-large"></i> <span id="layout-btn-label">عرض الشبكة (Gallery)</span>
+                            </button>
+                        </div>
+
+                        <!-- Group 3: Moderator Special Commands -->
                         ${self.config.isModerator ? `
                             <div class="toolbar-group">
                                 <button id="btn-stage-mute-all" class="btn btn-danger rounded-pill shadow-sm" title="كتم صوت جميع الطلاب">
@@ -209,7 +227,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                             </div>
                         ` : ''}
 
-                        <!-- Group 3: Viewport & Exit Actions -->
+                        <!-- Group 4: Viewport & Exit Actions -->
                         <div class="toolbar-group">
                             <button id="btn-fullscreen" class="btn btn-outline-light rounded-circle" title="ملء الشاشة">
                                 <i class="fa fa-arrows-alt fa-lg"></i>
@@ -249,6 +267,133 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             }
         }
 
+        toggleLayout() {
+            this.layoutMode = (this.layoutMode === 'speaker') ? 'gallery' : 'speaker';
+            if (this.layoutMode === 'gallery') {
+                $('#container-speaker').addClass('d-none');
+                $('#container-gallery').removeClass('d-none');
+                $('#layout-btn-label').text('وضع الشرح (Speaker)');
+                $('#btn-toggle-layout').find('i').removeClass('fa-th-large').addClass('fa-television');
+                $('#btn-toggle-layout').removeClass('btn-outline-info').addClass('btn-info text-white');
+                this.renderParticipants();
+            } else {
+                $('#container-gallery').addClass('d-none');
+                $('#container-speaker').removeClass('d-none');
+                $('#layout-btn-label').text('عرض الشبكة (Gallery)');
+                $('#btn-toggle-layout').find('i').removeClass('fa-television').addClass('fa-th-large');
+                $('#btn-toggle-layout').removeClass('btn-info text-white').addClass('btn-outline-info');
+                this.renderParticipants();
+            }
+        }
+
+        renderParticipants() {
+            const self = this;
+            if (!self.participants || self.participants.length === 0) return;
+
+            // 1. Render Gallery Grid
+            const gridEl = $('#gallery-grid');
+            if (gridEl.length) {
+                let gridHtml = '';
+
+                // Tile 0: Instructor Card
+                gridHtml += `
+                    <div class="gallery-tile instructor-tile shadow">
+                        <div class="position-absolute top-0 start-0 m-2 z-1">
+                            <span class="badge bg-danger rounded-pill px-2 py-1"><i class="fa fa-shield"></i> المدرب</span>
+                        </div>
+                        ${self.config.isModerator ? `
+                            <video id="gallery-instructor-video" class="w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0;" autoplay playsinline muted></video>
+                        ` : `
+                            <div class="d-flex flex-column align-items-center justify-content-center my-auto">
+                                <div class="badge bg-danger bg-opacity-25 text-danger rounded-circle p-3 mb-2">
+                                    <i class="fa fa-graduation-cap fa-2x"></i>
+                                </div>
+                            </div>
+                        `}
+                        <div class="tile-name mt-auto z-1">${self.config.instructorName || 'المحاضر'}</div>
+                        <div class="tile-footer z-1">
+                            <span class="text-success small"><i class="fa fa-circle"></i> بث مباشر</span>
+                            <span class="text-white small"><i class="fa fa-microphone"></i></span>
+                        </div>
+                    </div>
+                `;
+
+                // Student Tiles
+                self.participants.forEach(st => {
+                    const isMe = (st.id === self.config.currentUserId);
+                    const isInClass = (st.status === 'in_class');
+                    const isOnline = (st.status === 'online_not_in_class');
+
+                    let statusBadge = '';
+                    if (isInClass) {
+                        statusBadge = '<span class="badge bg-success-subtle text-success border border-success"><span class="pulse-dot pulse-dot-green"></span> متصل</span>';
+                    } else if (isOnline) {
+                        statusBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning"><span class="pulse-dot pulse-dot-amber"></span> مودل</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-secondary-subtle text-muted"><span class="pulse-dot pulse-dot-gray"></span> غائب</span>';
+                    }
+
+                    gridHtml += `
+                        <div class="gallery-tile ${isInClass ? 'tile-active' : ''} shadow" id="gallery-tile-${st.id}">
+                            ${st.handRaised ? '<div class="hand-badge" title="رفع اليد للمشاركة">✋</div>' : ''}
+                            
+                            ${isMe && self.localStream ? `
+                                <video class="gallery-my-video w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0;" autoplay playsinline muted></video>
+                            ` : `
+                                <img src="${st.avatar}" class="tile-avatar shadow-sm" alt="${st.fullname}" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
+                            `}
+                            
+                            <div class="tile-name mt-auto z-1" title="${st.fullname}">${st.fullname} ${isMe ? '(أنت)' : ''}</div>
+                            
+                            <div class="tile-footer z-1">
+                                <div>${statusBadge}</div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="text-muted small"><i class="fa ${isInClass ? 'fa-microphone text-success' : 'fa-microphone-slash text-muted'}"></i></span>
+                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">${st.percent}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                gridEl.html(gridHtml);
+
+                // Bind streams for active video tiles
+                if (self.localStream) {
+                    if (self.config.isModerator) {
+                        const giv = document.getElementById('gallery-instructor-video');
+                        if (giv) giv.srcObject = self.localStream;
+                    } else {
+                        const gmv = document.querySelector('.gallery-my-video');
+                        if (gmv) gmv.srcObject = self.localStream;
+                    }
+                }
+            }
+
+            // 2. Render Speaker View Filmstrip (at bottom of speaker stage)
+            const filmstripEl = $('#speaker-filmstrip');
+            if (filmstripEl.length) {
+                const connectedStudents = self.participants.filter(st => st.status === 'in_class');
+                if (connectedStudents.length > 0) {
+                    filmstripEl.removeClass('d-none');
+                    let filmstripHtml = '';
+                    connectedStudents.forEach(st => {
+                        filmstripHtml += `
+                            <div class="filmstrip-card card-active shadow-sm" title="${st.fullname}">
+                                ${st.handRaised ? '<div class="hand-badge" style="top:2px; right:2px; width:22px; height:22px; font-size:0.75rem;">✋</div>' : ''}
+                                <img src="${st.avatar}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #22c55e;" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
+                                <div class="text-white text-truncate small mt-1 w-100 text-center" style="font-size: 0.75rem;">${st.fullname}</div>
+                                <span class="badge bg-success" style="font-size: 0.6rem;">${st.percent}%</span>
+                            </div>
+                        `;
+                    });
+                    filmstripEl.html(filmstripHtml);
+                } else {
+                    filmstripEl.addClass('d-none');
+                }
+            }
+        }
+
         startHeartbeatLoop() {
             const self = this;
 
@@ -262,48 +407,61 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                     cmid: self.config.cmid,
                     sessionid: self.config.sessionId
                 },
-                dataType: 'json'
+                dataType: 'json',
+                success: function() {
+                    self.fetchHeartbeat();
+                }
             });
 
-            // 2. Continuous 12-second heartbeat loop
+            // 2. Continuous 10-second heartbeat loop
             this.heartbeatInterval = setInterval(() => {
-                $.ajax({
-                    url: M.cfg.wwwroot + '/mod/liveclass/heartbeat.php',
-                    type: 'POST',
-                    data: {
-                        action: 'heartbeat',
-                        sesskey: self.config.sesskey,
-                        cmid: self.config.cmid,
-                        sessionid: self.config.sessionId,
-                        mic: self.isMicMuted ? 0 : 1,
-                        cam: self.isCamOff ? 0 : 1,
-                        hand: self.isHandRaised ? 1 : 0,
-                        screen: self.isScreenSharing ? 1 : 0
-                    },
-                    dataType: 'json',
-                    success: function(res) {
-                        if (res && res.status === 'success') {
-                            if (res.active_students) {
-                                $('#online-students-count').text(res.active_students);
-                            }
+                self.fetchHeartbeat();
+            }, 10000);
+        }
 
-                            // Remote Mute enforcement from moderator
-                            if (res.must_mute && !self.isMicMuted && !self.config.isModerator) {
-                                self.muteLocalMic();
-                                $('#mute-notice').removeClass('d-none');
-                                setTimeout(() => { $('#mute-notice').addClass('d-none'); }, 5000);
-                            }
+        fetchHeartbeat() {
+            const self = this;
+            $.ajax({
+                url: M.cfg.wwwroot + '/mod/liveclass/heartbeat.php',
+                type: 'POST',
+                data: {
+                    action: 'heartbeat',
+                    sesskey: self.config.sesskey,
+                    cmid: self.config.cmid,
+                    sessionid: self.config.sessionId,
+                    mic: self.isMicMuted ? 0 : 1,
+                    cam: self.isCamOff ? 0 : 1,
+                    hand: self.isHandRaised ? 1 : 0,
+                    screen: self.isScreenSharing ? 1 : 0
+                },
+                dataType: 'json',
+                success: function(res) {
+                    if (res && res.status === 'success') {
+                        if (res.active_students !== undefined) {
+                            $('#online-students-count').text(res.active_students);
+                        }
 
-                            // Recording badge sync
-                            if (res.is_recording) {
-                                $('#recording-badge').removeClass('d-none');
-                            } else if (self.config.recordingMode !== 1) {
-                                $('#recording-badge').addClass('d-none');
-                            }
+                        if (res.participants) {
+                            self.participants = res.participants;
+                            self.renderParticipants();
+                        }
+
+                        // Remote Mute enforcement from moderator
+                        if (res.must_mute && !self.isMicMuted && !self.config.isModerator) {
+                            self.muteLocalMic();
+                            $('#mute-notice').removeClass('d-none');
+                            setTimeout(() => { $('#mute-notice').addClass('d-none'); }, 5000);
+                        }
+
+                        // Recording badge sync
+                        if (res.is_recording) {
+                            $('#recording-badge').removeClass('d-none');
+                        } else if (self.config.recordingMode !== 1) {
+                            $('#recording-badge').addClass('d-none');
                         }
                     }
-                });
-            }, 12000);
+                }
+            });
         }
 
         muteLocalMic() {
@@ -330,6 +488,11 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
         bindToolbarControls() {
             const self = this;
+
+            // Layout View Toggle Button (Speaker vs Gallery)
+            $('#btn-toggle-layout').on('click', function() {
+                self.toggleLayout();
+            });
 
             $('#btn-toggle-mic').on('click', function() {
                 if (self.localStream) {
@@ -384,6 +547,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 self.isHandRaised = !self.isHandRaised;
                 $(this).toggleClass('btn-outline-warning btn-warning text-dark');
                 self.logEvent(self.isHandRaised ? 'raise_hand' : 'lower_hand', 'Student toggled hand raise');
+                self.fetchHeartbeat();
             });
 
             // Mute all participants from stage
