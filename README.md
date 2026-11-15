@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.2-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.3-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,12 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.3] - 2026-11-15
+- **Full LiveKit SFU WebRTC 30fps Continuous Video Engine**: Packaged and integrated the official `livekit-client` UMD WebRTC bundle (`amd/src/livekit_client.js`) into Moodle AMD loader, enabling direct real-time peer media streaming (`Room.connect()`, `TrackSubscribed`, `publishTrack()`).
+- **Nginx Reverse Proxy & Cloudflare Pass-Through**: Reconfigured production Nginx to reverse-proxy `/rtc` and `/twirp/` to LiveKit SFU (`http://172.18.0.1:7880`), passing secure WebSocket connections (`wss://lms.sanad.ws/rtc`) directly through standard HTTPS port 443 without external port 7880 blocks.
+- **Bi-Directional Track Attachment**: Automatically attaches subscribed incoming student video & audio streams directly onto Gallery Grid cards and Speaker View stage with real-time mic state tracking.
+- **Dual-Engine Graceful Fallback**: Retained HTTP snapshot engine (`frame.php`) as a seamless background safety net in case of network packet loss or restrictive ICE NAT traversal.
 
 ### [v1.1.2] - 2026-11-15
 - **Live Camera Frame Streaming (`frame.php`)**: Implemented high-speed HTTP snapshot streaming engine capturing tablet/webcam frames every 2.5s and rendering live student video directly within Gallery and Speaker cards, bypassing restrictive institutional WebRTC/VCN port blockades.

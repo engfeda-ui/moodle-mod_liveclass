@@ -106,7 +106,8 @@ $token = \mod_liveclass\token_factory::create_token(
     ['role' => $is_moderator ? 'moderator' : 'student', 'email' => $USER->email]
 );
 
-$livekit_host = get_config('mod_liveclass', 'livekit_host') ?: 'wss://lms.sanad.ws:7880';
+$livekit_host = get_config('mod_liveclass', 'livekit_host') ?: 'wss://lms.sanad.ws';
+$livekit_host = str_replace(':7880', '', $livekit_host);
 
 // Initialize AMD Classroom module.
 $PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
