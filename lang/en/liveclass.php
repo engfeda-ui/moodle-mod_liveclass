@@ -155,4 +155,17 @@ $string['focus_window_lost'] = 'Window Lost Focus';
 $string['focus_tab_restored'] = 'Returned to Live Class';
 $string['focus_modal_title'] = 'Learner Focus & Attention Audit';
 $string['hand_raised_badge'] = 'Hand Raised (Requesting to Speak)';
+$string['class_not_started'] = 'Class Not Started Yet (Waiting Lobby)';
+$string['class_not_started_msg'] = 'This live class is scheduled to begin at: {$a}. Please wait, the classroom will automatically open when the time arrives.';
+$string['starts_in'] = 'Starts in';
+$string['class_ended'] = 'This Live Class Has Ended';
+$string['class_ended_msg'] = 'The scheduled live stream for this class ended at: {$a}.';
+$string['attendance_summary'] = 'Your Attendance Summary';
+$string['attendance_status_met'] = 'Attendance requirement successfully met';
+$string['attendance_status_unmet'] = 'Minimum attendance requirement not met';
+$string['return_to_course'] = 'Return to Course';
+$string['moderator_early_notice'] = 'You are in the classroom as a moderator before the scheduled start time. Students are in the waiting lobby and will join automatically when the time arrives.';
+$string['moderator_ended_notice'] = 'The scheduled class time has ended. Student entry is currently blocked. You can review attendance reports or extend the schedule in activity settings.';
+$string['end_session_btn'] = 'End Class for Everyone';
+$string['end_session_confirm'] = 'Are you sure you want to end this class and close the room for all students?';
 

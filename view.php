@@ -50,11 +50,178 @@ $PAGE->set_title(format_string($liveclass->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
-// Find or initialize active session.
+$now = time();
+$start_time = (int)$liveclass->start_time;
+$end_time   = (int)$liveclass->end_time;
+
+// Check existing session state.
 $session = $DB->get_record('liveclass_sessions', [
     'liveclassid' => $liveclass->id,
     'status'      => 'active'
 ]);
+
+// 1. Student Access Control: Waiting Lobby (Before Start Time)
+if (!$is_moderator && $start_time > 0 && $now < $start_time) {
+    echo $OUTPUT->header();
+    $diff_seconds = max(0, $start_time - $now);
+    ?>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-lg border-0 text-center p-4 rounded-4">
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <span class="badge bg-warning-subtle text-warning border border-warning rounded-circle p-4 mb-3 shadow-sm d-inline-block">
+                                <i class="fa fa-clock-o fa-4x text-warning"></i>
+                            </span>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-2"><?php echo format_string($liveclass->name); ?></h3>
+                        <h5 class="text-secondary mb-4"><?php echo get_string('class_not_started', 'mod_liveclass'); ?></h5>
+
+                        <div class="alert alert-light border shadow-sm py-3 px-4 mb-4 text-start">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted"><i class="fa fa-calendar me-1"></i> <?php echo get_string('starttime', 'mod_liveclass'); ?>:</span>
+                                <span class="fw-bold text-primary"><?php echo userdate($start_time); ?></span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted"><i class="fa fa-hourglass-end me-1"></i> <?php echo get_string('endtime', 'mod_liveclass'); ?>:</span>
+                                <span class="fw-bold text-muted"><?php echo userdate($end_time); ?></span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-light rounded-3 mb-4 border">
+                            <div class="text-muted small mb-2"><?php echo get_string('starts_in', 'mod_liveclass'); ?></div>
+                            <div id="lobby-countdown" class="display-6 fw-bold font-monospace text-primary">--:--:--</div>
+                        </div>
+
+                        <p class="text-muted small mb-4">
+                            <?php echo get_string('class_not_started_msg', 'mod_liveclass', userdate($start_time)); ?>
+                        </p>
+
+                        <div class="d-flex justify-content-center gap-2">
+                            <button onclick="window.location.reload();" class="btn btn-outline-primary rounded-pill px-4">
+                                <i class="fa fa-refresh"></i> تحديث الآن
+                            </button>
+                            <a href="<?php echo $CFG->wwwroot; ?>/course/view.php?id=<?php echo $course->id; ?>" class="btn btn-secondary rounded-pill px-4">
+                                <i class="fa fa-arrow-left"></i> <?php echo get_string('return_to_course', 'mod_liveclass'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var remaining = <?php echo (int)$diff_seconds; ?>;
+        var display = document.getElementById('lobby-countdown');
+        function updateTimer() {
+            if (remaining <= 0) {
+                display.textContent = '00:00:00';
+                display.classList.remove('text-primary');
+                display.classList.add('text-success');
+                setTimeout(function() { window.location.reload(); }, 1500);
+                return;
+            }
+            var h = Math.floor(remaining / 3600);
+            var m = Math.floor((remaining % 3600) / 60);
+            var s = remaining % 60;
+            display.textContent = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+            remaining--;
+        }
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    });
+    </script>
+    <?php
+    echo $OUTPUT->footer();
+    exit;
+}
+
+// 2. Student Access Control: Session Ended (After End Time or Completed)
+$is_session_expired = ($end_time > 0 && $now > $end_time);
+$is_explicitly_closed = ($session && $session->status === 'completed');
+
+if (!$is_moderator && ($is_session_expired || $is_explicitly_closed || (!$session && $start_time > 0 && $now > $start_time))) {
+    echo $OUTPUT->header();
+
+    // Student personal attendance record.
+    $user_att = $DB->get_record('liveclass_attendance', [
+        'liveclassid' => $liveclass->id,
+        'userid'      => $USER->id
+    ]);
+
+    $att_mins = $user_att ? round($user_att->total_duration_seconds / 60) : 0;
+    $att_pct = $user_att ? (int)$user_att->percent : 0;
+    $req_pct = (int)$liveclass->min_attendance_pct;
+    $is_met = ($att_pct >= $req_pct);
+
+    $recording_session = $DB->get_record_select('liveclass_sessions', 'liveclassid = ? AND recording_url IS NOT NULL AND recording_url != "" ORDER BY id DESC', [$liveclass->id]);
+    ?>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-lg border-0 text-center p-4 rounded-4">
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary rounded-circle p-4 mb-3 shadow-sm d-inline-block">
+                                <i class="fa fa-calendar-check-o fa-4x text-secondary"></i>
+                            </span>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-2"><?php echo format_string($liveclass->name); ?></h3>
+                        <h5 class="text-danger fw-bold mb-3"><?php echo get_string('class_ended', 'mod_liveclass'); ?></h5>
+                        <p class="text-muted small mb-4">
+                            <?php echo get_string('class_ended_msg', 'mod_liveclass', userdate($end_time ?: time())); ?>
+                        </p>
+
+                        <!-- Student Attendance Summary Card -->
+                        <div class="card bg-light border-0 shadow-sm rounded-3 p-3 mb-4 text-start">
+                            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                                <i class="fa fa-user-circle me-1"></i> <?php echo get_string('attendance_summary', 'mod_liveclass'); ?>
+                            </h6>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">مدة حضورك المسجلة:</span>
+                                <span class="fw-bold"><?php echo $att_mins; ?> دقيقة</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">نسبة الحضور المحققة:</span>
+                                <span class="fw-bold <?php echo $is_met ? 'text-success' : 'text-danger'; ?>"><?php echo $att_pct; ?>% (الحد الأدنى: <?php echo $req_pct; ?>%)</span>
+                            </div>
+                            <div class="mt-2 text-center">
+                                <?php if ($is_met): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill">
+                                        <i class="fa fa-check-circle"></i> <?php echo get_string('attendance_status_met', 'mod_liveclass'); ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-3 py-2 rounded-pill">
+                                        <i class="fa fa-exclamation-triangle"></i> <?php echo get_string('attendance_status_unmet', 'mod_liveclass'); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <?php if ($recording_session && !empty($recording_session->recording_url)): ?>
+                            <div class="mb-4">
+                                <a href="<?php echo s($recording_session->recording_url); ?>" target="_blank" class="btn btn-outline-success rounded-pill px-4">
+                                    <i class="fa fa-play-circle"></i> <?php echo get_string('play_recording', 'mod_liveclass'); ?>
+                                </a>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="<?php echo $CFG->wwwroot; ?>/course/view.php?id=<?php echo $course->id; ?>" class="btn btn-primary rounded-pill px-4">
+                                <i class="fa fa-arrow-left"></i> <?php echo get_string('return_to_course', 'mod_liveclass'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php
+    echo $OUTPUT->footer();
+    exit;
+}
 
 if (!$session) {
     $session = $DB->get_record('liveclass_sessions', [
@@ -144,6 +311,24 @@ echo $OUTPUT->header();
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($is_moderator && $start_time > 0 && $now < $start_time): ?>
+        <div class="alert alert-info border-0 shadow-sm rounded-3 mb-3 d-flex align-items-center">
+            <i class="fa fa-info-circle fa-2x me-3 ms-2 text-info"></i>
+            <div>
+                <strong>تنبيه للمدرب:</strong> <?php echo get_string('moderator_early_notice', 'mod_liveclass'); ?>
+                <div class="small text-muted mt-1">موعد البدء المجدول: <?php echo userdate($start_time); ?> (بعد <?php echo format_time($start_time - $now); ?>).</div>
+            </div>
+        </div>
+    <?php elseif ($is_moderator && $end_time > 0 && $now > $end_time): ?>
+        <div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3 d-flex align-items-center">
+            <i class="fa fa-exclamation-triangle fa-2x me-3 ms-2 text-warning"></i>
+            <div>
+                <strong>تنبيه للمدرب:</strong> <?php echo get_string('moderator_ended_notice', 'mod_liveclass'); ?>
+                <div class="small text-muted mt-1">انتهى موعد الحصة المجدول في: <?php echo userdate($end_time); ?>. المتدربون لا يستطيعون الدخول حالياً.</div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- LiveClass WebRTC Viewport -->
     <div class="card shadow-sm border-0 mb-4">
@@ -238,6 +423,9 @@ echo $OUTPUT->header();
                     </button>
                     <button id="btn-refresh-roster" class="btn btn-outline-primary btn-sm rounded-pill px-3 shadow-sm">
                         <i class="fa fa-refresh" id="refresh-spinner"></i> <?php echo get_string('refresh_roster', 'mod_liveclass'); ?>
+                    </button>
+                    <button id="btn-end-session" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm" title="<?php echo get_string('end_session_btn', 'mod_liveclass'); ?>">
+                        <i class="fa fa-power-off"></i> <?php echo get_string('end_session_btn', 'mod_liveclass'); ?>
                     </button>
                 </div>
             </div>
@@ -739,6 +927,28 @@ echo $OUTPUT->header();
                             })
                             .catch(function() {
                                 lowerHandsRosterBtn.disabled = false;
+                            });
+                    }
+                });
+            }
+
+            // End session for everyone button handler
+            var endSessionBtn = document.getElementById('btn-end-session');
+            if (endSessionBtn) {
+                endSessionBtn.addEventListener('click', function() {
+                    if (confirm('<?php echo get_string('end_session_confirm', 'mod_liveclass'); ?>')) {
+                        endSessionBtn.disabled = true;
+                        fetch('control.php?cmid=' + cmid + '&action=endsession&sesskey=' + sesskey)
+                            .then(function(r) { return r.json(); })
+                            .then(function(res) {
+                                if (res.status === 'success') {
+                                    window.location.reload();
+                                } else {
+                                    endSessionBtn.disabled = false;
+                                }
+                            })
+                            .catch(function() {
+                                endSessionBtn.disabled = false;
                             });
                     }
                 });

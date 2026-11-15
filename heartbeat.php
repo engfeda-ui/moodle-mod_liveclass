@@ -56,6 +56,19 @@ if ((int)$session->liveclassid !== (int)$cm->instance) {
 $now = time();
 $userid = (int)$USER->id;
 
+// Gatekeeper: Check if session has ended or expired for non-moderators.
+$is_mod = has_capability('mod/liveclass:moderate', $context);
+if ($session->status === 'completed' || (!$is_mod && !empty($liveclass->end_time) && $now > $liveclass->end_time)) {
+    if ($action !== 'leave') {
+        \mod_liveclass\attendance_engine::participant_left($sessionid, $userid, $now);
+    }
+    echo json_encode([
+        'status'  => 'ended',
+        'message' => 'The class session has ended'
+    ]);
+    exit;
+}
+
 switch ($action) {
     case 'join':
         \mod_liveclass\attendance_engine::participant_joined($sessionid, $userid, $now);

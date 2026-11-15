@@ -124,6 +124,24 @@ switch ($action) {
         echo json_encode(['status' => 'success']);
         break;
 
+    case 'endsession':
+        if ($session_id > 0 && $session) {
+            $session->status = 'completed';
+            $session->actual_end = time();
+            $DB->update_record('liveclass_sessions', $session);
+
+            $log = (object)[
+                'sessionid'    => $session_id,
+                'userid'       => $USER->id,
+                'event_type'   => 'session_ended',
+                'event_data'   => json_encode(['moderator' => fullname($USER), 'time' => time()]),
+                'timecreated'  => time()
+            ];
+            $DB->insert_record('liveclass_presence_logs', $log);
+        }
+        echo json_encode(['status' => 'success', 'message' => 'Session ended']);
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
         break;

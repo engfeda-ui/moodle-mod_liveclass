@@ -816,6 +816,10 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                 },
                 dataType: 'json',
                 success: function(res) {
+                    if (res && res.status === 'ended') {
+                        self.leaveClassroom();
+                        return;
+                    }
                     if (res && res.status === 'success') {
                         if (res.active_students !== undefined) {
                             $('#online-students-count').text(res.active_students);

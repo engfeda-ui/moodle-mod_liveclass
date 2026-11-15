@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.4-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.5-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,12 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.5] - 2026-11-15
+- **Authoritative Schedule Gatekeeper**: Enforced server-side access control preventing students from accessing live class sessions before the scheduled `start_time` or after `end_time`.
+- **Pre-Class Waiting Lobby with Live Countdown**: Rendered a dedicated waiting room for early students showing scheduled times, real-time seconds countdown, and automated page reload at zero.
+- **Post-Class Conclusion & Attendance Summary**: Replaced open rooms with a personalized completion screen after class ends, presenting individual attendance minutes, percentage compliance against threshold, and recording links.
+- **Instructor Session Control & Time Alerts**: Added context-aware instructor notices for early preparation / ended sessions and implemented an "End Class for Everyone" action button (`control.php?action=endsession`) with instant client disconnection via heartbeat (`status: ended`).
 
 ### [v1.1.4] - 2026-11-15
 - **Interactive Focus Alerts Breakdown (`focus_logs.php`)**: Converted static focus alert counter badges into interactive buttons opening a modal (`#modal-focus-detail`) displaying granular timestamps, event types (tab hidden, window focus lost, tab restored), and activity context for each student.
