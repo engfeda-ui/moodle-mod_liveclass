@@ -127,11 +127,40 @@ class roster_manager {
             $members = get_enrolled_users($context, 'mod/liveclass:join', 0, $userfields);
         }
 
+        $now = time();
+
         // Get active/latest session.
         $session = $DB->get_record('liveclass_sessions', [
             'liveclassid' => $liveclass->id,
             'status'      => 'active'
         ]);
+
+        $is_session_active = ($session && $session->status === 'active' && (empty($liveclass->end_time) || $now <= (int)$liveclass->end_time));
+
+        // Auto-complete expired session if scheduled end time has passed.
+        if ($session && $session->status === 'active' && !empty($liveclass->end_time) && $now > (int)$liveclass->end_time) {
+            $session->status = 'completed';
+            $session->actual_end = (int)$liveclass->end_time;
+            $DB->update_record('liveclass_sessions', $session);
+
+            // Close lingering open intervals for this expired session.
+            $open_intervals = $DB->get_records_sql("
+                SELECT i.id, i.join_time, i.attendanceid
+                  FROM {liveclass_intervals} i
+                  JOIN {liveclass_attendance} a ON a.id = i.attendanceid
+                 WHERE a.sessionid = :sid AND i.leave_time = 0
+            ", ['sid' => $session->id]);
+
+            foreach ($open_intervals as $oi) {
+                $close_time = min($now, (int)$liveclass->end_time);
+                $oi->leave_time = $close_time;
+                $oi->duration_seconds = max(0, $close_time - $oi->join_time);
+                $DB->update_record('liveclass_intervals', $oi);
+            }
+
+            $is_session_active = false;
+        }
+
         if (!$session) {
             $session = $DB->get_record_sql("SELECT * FROM {liveclass_sessions} WHERE liveclassid = ? ORDER BY id DESC LIMIT 1", [$liveclass->id]);
         }
@@ -231,22 +260,22 @@ class roster_manager {
             $is_in_class = false;
             $is_online_moodle = false;
 
-            if ($is_connected_now || ($att && $percent >= (int)$liveclass->min_attendance_pct)) {
+            // Student is ONLY "in_class" if session is currently active AND student is actively connected right now!
+            if ($is_session_active && $is_connected_now) {
                 $is_in_class = true;
                 $status = 'in_class';
                 $in_class_count++;
             } else {
-                // Check if active on Moodle.
+                // Check if active on Moodle within last 15 minutes.
                 $last_site_access = (int)$user->lastaccess;
                 $last_course_access = isset($course_access_map[$userid]) ? $course_access_map[$userid] : 0;
                 $has_active_session = isset($recent_session_userids[$userid]);
 
                 $time_window = 900; // 15 minutes.
-                $is_recent_site = ($last_site_access > (time() - $time_window));
-                $is_recent_course = ($last_course_access > (time() - $time_window));
-                $is_during_class = ($last_site_access >= (int)$liveclass->start_time && $last_site_access <= (int)$liveclass->end_time);
+                $is_recent_site = ($last_site_access > ($now - $time_window));
+                $is_recent_course = ($last_course_access > ($now - $time_window));
 
-                if ($has_active_session || $is_recent_site || $is_recent_course || $is_during_class) {
+                if ($has_active_session || $is_recent_site || $is_recent_course) {
                     $is_online_moodle = true;
                     $status = 'online_not_in_class';
                     $online_not_in_class_count++;

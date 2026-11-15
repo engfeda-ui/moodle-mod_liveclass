@@ -592,54 +592,53 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     </div>
                 `;
 
-                // Student Tiles
-                self.participants.forEach(st => {
-                    const isMe = (st.id === self.config.currentUserId);
-                    const isInClass = (st.status === 'in_class');
-                    const isOnline = (st.status === 'online_not_in_class');
+                // Student Tiles: Render ONLY connected students on the live stage!
+                const connectedStudents = self.participants.filter(st => st.status === 'in_class' && st.id !== self.config.currentUserId);
 
-                    let statusBadge = '';
-                    if (isInClass) {
-                        statusBadge = '<span class="badge bg-success-subtle text-success border border-success"><span class="pulse-dot pulse-dot-green"></span> متصل</span>';
-                    } else if (isOnline) {
-                        statusBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning"><span class="pulse-dot pulse-dot-amber"></span> مودل</span>';
-                    } else {
-                        statusBadge = '<span class="badge bg-secondary-subtle text-muted"><span class="pulse-dot pulse-dot-gray"></span> غائب</span>';
-                    }
-
+                if (connectedStudents.length === 0) {
                     gridHtml += `
-                        <div class="gallery-tile ${isInClass ? 'tile-active' : ''} shadow" id="gallery-tile-${st.id}">
-                            ${st.handRaised ? '<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>' : ''}
-                            
-                            ${isMe && self.localStream ? `
-                                <video class="gallery-my-video w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0; z-index:1;" autoplay playsinline muted></video>
-                            ` : `
+                        <div class="gallery-empty-notice d-flex flex-column align-items-center justify-content-center p-4 text-center my-auto" style="grid-column: 2 / -1; min-height: 220px;">
+                            <div class="badge bg-secondary bg-opacity-25 text-white-50 rounded-circle p-3 mb-2">
+                                <i class="fa fa-users fa-2x"></i>
+                            </div>
+                            <div class="text-white-50 small">لا يوجد متدربون متصلون حالياً في القاعة الافتراضية</div>
+                            <div class="text-secondary small mt-1" style="font-size:0.75rem;">(يظهر المتدربون هنا تلقائياً فور انضمامهم للبث)</div>
+                        </div>
+                    `;
+                } else {
+                    connectedStudents.forEach(st => {
+                        const statusBadge = '<span class="badge bg-success-subtle text-success border border-success"><span class="pulse-dot pulse-dot-green"></span> متصل</span>';
+
+                        gridHtml += `
+                            <div class="gallery-tile tile-active shadow" id="gallery-tile-${st.id}">
+                                ${st.handRaised ? '<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>' : ''}
+                                
                                 <img id="live-frame-${st.id}" 
                                      src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${st.id}&t=${Date.now()}" 
                                      class="w-100 h-100 tile-live-frame" 
-                                     style="object-fit: cover; position: absolute; top:0; left:0; z-index:0; ${isInClass ? '' : 'display:none;'}"
+                                     style="object-fit: cover; position: absolute; top:0; left:0; z-index:0;"
                                      onerror="this.style.display='none'; const fb = document.getElementById('fallback-avatar-${st.id}'); if(fb) fb.style.display='block';"
                                      onload="if(this.naturalWidth > 60){ this.style.display='block'; const fb = document.getElementById('fallback-avatar-${st.id}'); if(fb) fb.style.display='none'; }">
                                 <img id="fallback-avatar-${st.id}" 
                                      src="${st.avatar}" 
                                      class="tile-avatar shadow-sm" 
-                                     style="${isInClass ? 'display:none;' : ''}"
+                                     style="display:none;"
                                      alt="${st.fullname}" 
                                      onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
-                            `}
-                            
-                            <div class="tile-name mt-auto z-2" title="${st.fullname}">${st.fullname} ${isMe ? '(أنت)' : ''}</div>
-                            
-                            <div class="tile-footer z-2">
-                                <div>${statusBadge}</div>
-                                <div class="d-flex align-items-center gap-1">
-                                    <span class="text-muted small"><i class="fa ${isInClass ? 'fa-microphone text-success' : 'fa-microphone-slash text-muted'}"></i></span>
-                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">${st.percent}%</span>
+                                
+                                <div class="tile-name mt-auto z-2" title="${st.fullname}">${st.fullname}</div>
+                                
+                                <div class="tile-footer z-2">
+                                    <div>${statusBadge}</div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="text-muted small"><i class="fa fa-microphone text-success"></i></span>
+                                        <span class="badge bg-secondary" style="font-size: 0.65rem;">${st.percent}%</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                });
+                        `;
+                    });
+                }
 
                 gridEl.html(gridHtml);
 

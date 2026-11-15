@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.5-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.6-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,11 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.6] - 2026-11-15
+- **Stage Gallery Grid Hygiene**: Filtered stage tiles to strictly display actively connected students (`status === 'in_class'`), eliminating offline/absent placeholder tiles and showing a clean empty state when no students are present.
+- **Precision Presence Classification (`roster_manager.php`)**: Decoupled historical attendance compliance (`percent >= 80%`) from real-time connection status (`in_class`), ensuring disconnected or past attendees are not falsely reported as currently active in class.
+- **Session Auto-Completion on Expiry**: Automatically transitions expired sessions from `active` to `completed` and closes lingering open intervals when `now > end_time`.
 
 ### [v1.1.5] - 2026-11-15
 - **Authoritative Schedule Gatekeeper**: Enforced server-side access control preventing students from accessing live class sessions before the scheduled `start_time` or after `end_time`.
