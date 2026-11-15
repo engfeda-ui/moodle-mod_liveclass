@@ -42,6 +42,9 @@ $user = $DB->get_record('user', ['id' => $target_id], 'id, firstname, lastname, 
 $liveclass = $DB->get_record('liveclass', ['id' => $cm->instance], '*', MUST_EXIST);
 
 $session = $DB->get_record('liveclass_sessions', ['liveclassid' => $liveclass->id, 'status' => 'active']);
+if (!$session) {
+    $session = $DB->get_record_sql('SELECT * FROM {liveclass_sessions} WHERE liveclassid = ? ORDER BY id DESC', [$liveclass->id], IGNORE_MULTIPLE);
+}
 $session_id = $session ? (int)$session->id : 0;
 
 $logs = [];

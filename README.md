@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.6-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.7-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,11 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.7] - 2026-11-15
+- **Production Asset Compilation (`classroom.min.js`)**: Compiled updated AMD source using Terser (`amd/build/classroom.min.js`, 43KB) ensuring production Moodle clients load the latest real-time presence logic.
+- **Historical Focus Audit Query Fallback (`focus_logs.php`)**: Added latest session resolution fallback for concluded/completed classes so instructors can audit student focus loss and tab-switches both during and after sessions.
+- **End-to-End WebSocket Handshake Audit**: Verified LiveKit WebRTC handshake (`/rtc`), Nginx reverse proxy headers, and authenticated token exchange across all operational states.
 
 ### [v1.1.6] - 2026-11-15
 - **Stage Gallery Grid Hygiene**: Filtered stage tiles to strictly display actively connected students (`status === 'in_class'`), eliminating offline/absent placeholder tiles and showing a clean empty state when no students are present.
