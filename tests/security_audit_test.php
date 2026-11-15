@@ -120,7 +120,22 @@ if (strpos($heartbeat, 'IDOR guard triggered') === false) {
     $errors[] = "heartbeat.php missing IDOR session check";
 }
 
-// 10. Parameter sanitization scan across all PHP files
+// 10. Audit frame.php (Live Camera Snapshot Streaming Endpoint)
+$frame = file_get_contents($root . '/frame.php');
+if (strpos($frame, 'confirm_sesskey()') === false) {
+    $errors[] = "frame.php missing CSRF sesskey protection";
+}
+if (strpos($frame, 'require_login()') === false) {
+    $errors[] = "frame.php missing require_login()";
+}
+if (strpos($frame, "require_capability('mod/liveclass:view'") === false) {
+    $errors[] = "frame.php missing view capability check";
+}
+if (strpos($frame, 'IDOR guard triggered') === false) {
+    $errors[] = "frame.php missing IDOR session check";
+}
+
+// 11. Parameter sanitization scan across all PHP files
 $all_php = glob($root . '/*.php');
 foreach ($all_php as $file) {
     $content = file_get_contents($file);

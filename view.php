@@ -82,11 +82,15 @@ if (!$session) {
 $session_id = $session ? $session->id : 0;
 
 // Find instructor name for this course/activity to display to students.
-$instructor_name = '';
-$teachers = get_enrolled_users($context, 'mod/liveclass:moderate');
-if (!empty($teachers)) {
-    $t = reset($teachers);
-    $instructor_name = fullname($t);
+if ($is_moderator) {
+    $instructor_name = fullname($USER);
+} else {
+    $instructor_name = '';
+    $teachers = get_enrolled_users($context, 'mod/liveclass:moderate');
+    if (!empty($teachers)) {
+        $t = reset($teachers);
+        $instructor_name = fullname($t);
+    }
 }
 
 // Generate LiveKit Access Token for this user.

@@ -339,6 +339,11 @@
     z-index: 10;
 }
 
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
 /* Filmstrip on Speaker view */
 .attendees-filmstrip {
     position: absolute;

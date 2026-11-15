@@ -100,6 +100,30 @@ switch ($action) {
         ]);
         break;
 
+    case 'lower_all_hands':
+        if ($session_id > 0) {
+            $raised_users = $DB->get_fieldset_sql("
+                SELECT DISTINCT userid FROM {liveclass_presence_logs}
+                 WHERE sessionid = :sid AND event_type = 'raise_hand'
+            ", ['sid' => $session_id]);
+            foreach ($raised_users as $ruid) {
+                \mod_liveclass\attendance_engine::log_presence_event($session_id, (int)$ruid, 'lower_hand', 'Moderator lowered all hands');
+            }
+        }
+        echo json_encode([
+            'status'  => 'success',
+            'message' => get_string('lower_all_hands_success', 'mod_liveclass')
+        ]);
+        break;
+
+    case 'lower_hand':
+        $target_user = optional_param('target_userid', 0, PARAM_INT);
+        if ($session_id > 0 && $target_user > 0) {
+            \mod_liveclass\attendance_engine::log_presence_event($session_id, $target_user, 'lower_hand', 'Moderator lowered hand');
+        }
+        echo json_encode(['status' => 'success']);
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
         break;

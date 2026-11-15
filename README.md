@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.1-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.2-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,13 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.2] - 2026-11-15
+- **Live Camera Frame Streaming (`frame.php`)**: Implemented high-speed HTTP snapshot streaming engine capturing tablet/webcam frames every 2.5s and rendering live student video directly within Gallery and Speaker cards, bypassing restrictive institutional WebRTC/VCN port blockades.
+- **Audio Chime & High-Visibility Hand Raise Alerts**: Integrated Web Audio API dual-tone chime (880Hz / 1318.5Hz) and a sticky animated toast alert informing the instructor instantly when any learner raises their hand for participation. Added "Lower Hands" command (`#btn-stage-lower-hands`).
+- **Instructor Identity Precision**: Fixed instructor card resolution in `view.php` to accurately recognize the active moderator (Mahmoud Salem) rather than defaulting to the first enrolled teacher.
+- **Viewport Layout Conflict Resolution**: Eliminated simultaneous side-by-side rendering between `#container-speaker` and `#container-gallery` by enforcing explicit inline display styles and defaulting to full-screen Gallery Grid mode.
+- **Hand-Raise Telemetry Sync**: Corrected SQL subquery logic in `heartbeat.php` to ignore stale historical logs, tie hand raises directly to active presence, and auto-lower hands on disconnect or client reset.
 
 ### [v1.1.1] - 2026-11-15
 - **Live Gallery Grid Viewport (`#gallery-grid`)**: Added full responsive participant gallery inside the classroom viewport displaying each attending student as an interactive tile with official avatar, full name, live presence badge (`🟢 متصل`), active mic icon, attendance percentage, and real-time hand raise (`✋`) badge.

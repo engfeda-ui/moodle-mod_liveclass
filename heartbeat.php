@@ -97,6 +97,22 @@ switch ($action) {
 
         $result = \mod_liveclass\attendance_engine::heartbeat($sessionid, $userid, $now, $client_state);
 
+        // Synchronize client-reported hand raise state with presence logs.
+        $last_hand_event = $DB->get_record_sql("
+            SELECT id, event_type 
+              FROM {liveclass_presence_logs}
+             WHERE sessionid = :sid 
+               AND userid = :uid 
+               AND event_type IN ('raise_hand', 'lower_hand', 'left_class')
+             ORDER BY id DESC
+        ", ['sid' => $sessionid, 'uid' => $userid], IGNORE_MULTIPLE);
+
+        if ($hand_raised && (!$last_hand_event || $last_hand_event->event_type !== 'raise_hand')) {
+            \mod_liveclass\attendance_engine::log_presence_event($sessionid, $userid, 'raise_hand', 'Student raised hand via heartbeat');
+        } else if (!$hand_raised && $last_hand_event && $last_hand_event->event_type === 'raise_hand') {
+            \mod_liveclass\attendance_engine::log_presence_event($sessionid, $userid, 'lower_hand', 'Student lowered hand via heartbeat');
+        }
+
         // Check for recent commands (like mute all in last 25 seconds).
         $recent_mute = $DB->record_exists_select(
             'liveclass_presence_logs',
@@ -137,15 +153,17 @@ switch ($action) {
             SELECT p1.userid 
               FROM {liveclass_presence_logs} p1
              WHERE p1.sessionid = :sid 
+               AND p1.timestamp > :recent
                AND p1.id = (SELECT MAX(p2.id) FROM {liveclass_presence_logs} p2 
                              WHERE p2.sessionid = :sid2 AND p2.userid = p1.userid 
-                               AND p2.event_type IN ('raise_hand', 'lower_hand'))
+                               AND p2.event_type IN ('raise_hand', 'lower_hand', 'left_class'))
                AND p1.event_type = 'raise_hand'
-        ", ['sid' => $sessionid, 'sid2' => $sessionid]);
+        ", ['sid' => $sessionid, 'sid2' => $sessionid, 'recent' => $now - 600]);
 
         $participants = [];
         if (!empty($roster->students)) {
             foreach ($roster->students as $st) {
+                $is_connected = ($st->status === 'in_class');
                 $participants[] = [
                     'id'         => (int)$st->id,
                     'fullname'   => $st->fullname,
@@ -153,7 +171,7 @@ switch ($action) {
                     'status'     => $st->status,
                     'percent'    => (int)$st->percent,
                     'duration'   => (int)$st->duration_mins,
-                    'handRaised' => isset($raised_hands[$st->id])
+                    'handRaised' => !empty($raised_hands[$st->id]) && $is_connected
                 ];
             }
         }

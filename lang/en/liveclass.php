@@ -146,4 +146,7 @@ $string['classmates_in_room'] = 'Classmates in Room';
 $string['joined_classroom'] = 'Connected to Classroom';
 $string['gallery_view'] = 'Gallery View';
 $string['speaker_view'] = 'Speaker View';
+$string['lower_all_hands'] = 'Lower All Hands';
+$string['lower_all_hands_success'] = 'All student hands have been lowered';
+$string['hand_raised_alert'] = 'Student {$a} requested to speak (hand raised)!';
 

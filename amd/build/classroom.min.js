@@ -14,17 +14,22 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             this.config = config;
             this.localStream = null;
             this.screenStream = null;
+            this.captureVideo = null;
             this.isMicMuted = false;
             this.isCamOff = false;
             this.isScreenSharing = false;
             this.isHandRaised = false;
             this.tabSwitchCount = 0;
             this.elapsedSeconds = 0;
-            this.layoutMode = 'speaker'; // 'speaker' or 'gallery'
+            this.layoutMode = 'gallery'; // Default to gallery grid
             this.participants = [];
             this.timerInterval = null;
             this.heartbeatInterval = null;
             this.pollInterval = null;
+            this.frameBroadcastInterval = null;
+            this.frameRefreshInterval = null;
+            this.handAlertTimeout = null;
+            this.raisedHandUsers = new Set();
             this.activePollId = 0;
             this.isRecording = (this.config.recordingMode === 1);
 
@@ -63,7 +68,9 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
         startClassroom() {
             const self = this;
             const stage = $('#liveclass-stage');
-            const instructorLabel = self.config.instructorName || 'المدرب';
+            const instructorLabel = self.config.isModerator ? 
+                `${self.config.displayName} (أنت - المدرب)` : 
+                (self.config.instructorName || 'المدرب');
 
             // Distinct Viewport layouts: Moderator vs Student in Speaker Mode
             const speakerModeContentHtml = self.config.isModerator ? `
@@ -78,14 +85,14 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             ` : `
                 <div class="w-100 h-100 d-flex justify-content-center align-items-center p-2 position-relative">
                     <!-- Instructor Stage Screen -->
-                    <div class="instructor-stage-card shadow-lg d-flex flex-column justify-content-between p-3" style="width: 100%; max-width: 960px; height: 500px;">
-                        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2">
+                    <div class="instructor-stage-card shadow-lg d-flex flex-column justify-content-between p-3" style="width: 100%; max-width: 960px; height: 500px; position: relative;">
+                        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 z-1">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-danger rounded-pill px-3 py-1 animate-pulse">
                                     <i class="fa fa-circle"></i> مباشر
                                 </span>
                                 <span class="text-white fw-bold">
-                                    <i class="fa fa-video-camera text-primary"></i> بث وشرح المحاضر: <span class="text-info">${instructorLabel}</span>
+                                    <i class="fa fa-video-camera text-primary"></i> بث وشرح المحاضر: <span class="text-info">${self.config.instructorName || instructorLabel}</span>
                                 </span>
                             </div>
                             <div class="classmates-strip shadow-sm" id="classmates-counter-badge">
@@ -93,14 +100,22 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                             </div>
                         </div>
 
-                        <!-- Central Visual Presentation Stage -->
-                        <div class="d-flex flex-column justify-content-center align-items-center text-center my-auto py-4">
+                        <!-- Live Instructor Frame for Students -->
+                        <img id="speaker-instructor-frame" 
+                             src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=2&t=${Date.now()}" 
+                             class="w-100 h-100 position-absolute top-0 start-0" 
+                             style="object-fit: cover; border-radius: 12px; z-index: 0;"
+                             onerror="this.style.display='none'; $('#speaker-fallback-stage').show();"
+                             onload="if(this.naturalWidth > 60){ this.style.display='block'; $('#speaker-fallback-stage').hide(); }">
+
+                        <!-- Central Visual Presentation Stage Fallback -->
+                        <div id="speaker-fallback-stage" class="d-flex flex-column justify-content-center align-items-center text-center my-auto py-4 z-1">
                             <div class="mb-3">
                                 <span class="badge bg-primary bg-opacity-25 text-info p-3 rounded-circle shadow">
                                     <i class="fa fa-graduation-cap fa-4x"></i>
                                 </span>
                             </div>
-                            <h4 class="text-white fw-bold mb-1">${instructorLabel}</h4>
+                            <h4 class="text-white fw-bold mb-1">${self.config.instructorName || instructorLabel}</h4>
                             <p class="text-light opacity-75 small mb-3">
                                 <i class="fa fa-podcast text-success"></i> القاعة الافتراضية نشطة وبث الشرح جاري الآن
                             </p>
@@ -110,7 +125,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                         </div>
 
                         <!-- Bottom Status Bar -->
-                        <div class="d-flex justify-content-between align-items-center text-muted small pt-2 border-top border-secondary">
+                        <div class="d-flex justify-content-between align-items-center text-muted small pt-2 border-top border-secondary z-1">
                             <span><i class="fa fa-info-circle"></i> يتم احتساب وقت تواجدك ومشاركتك آلياً بدقة</span>
                             <span id="student-live-pct" class="badge bg-secondary">0% الحضور</span>
                         </div>
@@ -146,16 +161,30 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                     </div>
 
                     <!-- Main Media Viewport -->
-                    <div class="liveclass-media-viewport flex-grow-1 d-flex position-relative bg-black">
+                    <div class="liveclass-media-viewport flex-grow-1 position-relative bg-black" style="min-height: 520px; overflow: hidden;">
                         <!-- Mode A: Speaker View Container -->
-                        <div id="container-speaker" class="w-100 h-100 position-relative d-flex justify-content-center align-items-center">
+                        <div id="container-speaker" class="w-100 h-100 position-relative justify-content-center align-items-center" style="display: none;">
                             ${speakerModeContentHtml}
                             <div id="speaker-filmstrip" class="attendees-filmstrip d-none"></div>
                         </div>
 
-                        <!-- Mode B: Gallery Grid View Container -->
-                        <div id="container-gallery" class="w-100 h-100 position-relative d-none">
+                        <!-- Mode B: Gallery Grid View Container (Active by default) -->
+                        <div id="container-gallery" class="w-100 h-100 position-relative" style="display: block;">
                             <div id="gallery-grid" class="gallery-grid-container"></div>
+                        </div>
+
+                        <!-- Hand Raise Notification Banner for Instructor -->
+                        <div id="hand-raise-alert" class="position-absolute top-0 start-50 translate-middle-x mt-3 alert alert-warning shadow-lg border border-warning d-none" style="z-index: 1070; min-width: 320px;">
+                            <div class="d-flex align-items-center justify-content-between gap-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fs-4">✋</span>
+                                    <div class="text-start">
+                                        <strong id="hand-raise-student-name">طالب</strong>
+                                        <div class="small text-dark">قام برفع اليد ويطلب التحدث أو المشاركة الآن</div>
+                                    </div>
+                                </div>
+                                <button id="btn-dismiss-hand-alert" type="button" class="btn btn-sm btn-outline-dark rounded-circle px-2 py-0">&times;</button>
+                            </div>
                         </div>
 
                         <!-- Spontaneous Poll Overlay for Students -->
@@ -207,8 +236,8 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
                         <!-- Group 2: Layout View Switcher (Speaker vs Gallery Grid) -->
                         <div class="toolbar-group">
-                            <button id="btn-toggle-layout" class="btn btn-outline-info rounded-pill shadow-sm" title="تبديل طريقة العرض (شرح / شبكة المتدربين)">
-                                <i class="fa fa-th-large"></i> <span id="layout-btn-label">عرض الشبكة (Gallery)</span>
+                            <button id="btn-toggle-layout" class="btn btn-info text-white rounded-pill shadow-sm" title="تبديل طريقة العرض (شرح / شبكة المتدربين)">
+                                <i class="fa fa-television"></i> <span id="layout-btn-label">وضع الشرح (Speaker)</span>
                             </button>
                         </div>
 
@@ -217,6 +246,9 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                             <div class="toolbar-group">
                                 <button id="btn-stage-mute-all" class="btn btn-danger rounded-pill shadow-sm" title="كتم صوت جميع الطلاب">
                                     <i class="fa fa-microphone-slash"></i> كتم الجميع
+                                </button>
+                                <button id="btn-stage-lower-hands" class="btn btn-warning rounded-pill shadow-sm" title="خفض جميع أيدي المتدربين">
+                                    <i class="fa fa-hand-paper-o"></i> خفض الأيدي
                                 </button>
                                 ${self.config.recordingMode === 2 ? `
                                     <button id="btn-toggle-recording" class="btn ${self.isRecording ? 'btn-danger' : 'btn-outline-danger'} rounded-pill shadow-sm" title="بدء / إيقاف التسجيل">
@@ -245,20 +277,36 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             self.bindToolbarControls();
             self.startPollWatcher();
             self.startHeartbeatLoop();
+            self.startFrameBroadcast();
+            self.startFrameRefreshLoop();
         }
 
         async initMediaStream() {
             try {
                 this.localStream = await navigator.mediaDevices.getUserMedia({
                     audio: true,
-                    video: { width: 1280, height: 720 }
+                    video: { width: 640, height: 480 }
                 });
                 const videoEl = document.getElementById('local-video');
                 if (videoEl) {
                     videoEl.srcObject = this.localStream;
                 }
+
+                // Dedicated offscreen capture video element for snapshot broadcasting
+                this.captureVideo = document.createElement('video');
+                this.captureVideo.muted = true;
+                this.captureVideo.playsInline = true;
+                this.captureVideo.autoplay = true;
+                this.captureVideo.srcObject = this.localStream;
+                this.captureVideo.play().catch(() => {});
+
+                // Mirror for gallery instructor tile
+                if (this.config.isModerator) {
+                    const giv = document.getElementById('gallery-instructor-video');
+                    if (giv) giv.srcObject = this.localStream;
+                }
             } catch (err) {
-                console.warn('[LiveClass] Camera/Mic access denied:', err);
+                console.warn('[LiveClass] Camera/Mic access denied or partially unavailable:', err);
                 try {
                     this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 } catch (e) {
@@ -269,20 +317,49 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
         toggleLayout() {
             this.layoutMode = (this.layoutMode === 'speaker') ? 'gallery' : 'speaker';
+            const speakerEl = document.getElementById('container-speaker');
+            const galleryEl = document.getElementById('container-gallery');
+
             if (this.layoutMode === 'gallery') {
-                $('#container-speaker').addClass('d-none');
-                $('#container-gallery').removeClass('d-none');
+                if (speakerEl) speakerEl.style.display = 'none';
+                if (galleryEl) galleryEl.style.display = 'block';
                 $('#layout-btn-label').text('وضع الشرح (Speaker)');
                 $('#btn-toggle-layout').find('i').removeClass('fa-th-large').addClass('fa-television');
                 $('#btn-toggle-layout').removeClass('btn-outline-info').addClass('btn-info text-white');
-                this.renderParticipants();
             } else {
-                $('#container-gallery').addClass('d-none');
-                $('#container-speaker').removeClass('d-none');
+                if (galleryEl) galleryEl.style.display = 'none';
+                if (speakerEl) speakerEl.style.display = 'flex';
                 $('#layout-btn-label').text('عرض الشبكة (Gallery)');
                 $('#btn-toggle-layout').find('i').removeClass('fa-television').addClass('fa-th-large');
                 $('#btn-toggle-layout').removeClass('btn-info text-white').addClass('btn-outline-info');
-                this.renderParticipants();
+            }
+            this.renderParticipants();
+        }
+
+        playHandRaiseChime() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                const now = ctx.currentTime;
+                // Dual tone bell chime: 880Hz (A5) then 1318.5Hz (E6)
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1318.5, now + 0.15);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.6);
+            } catch (e) {
+                console.warn('[LiveClass] Web Audio chime unavailable:', e);
             }
         }
 
@@ -296,6 +373,10 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 let gridHtml = '';
 
                 // Tile 0: Instructor Card
+                const instructorTitle = self.config.isModerator ? 
+                    `${self.config.displayName} (أنت - المدرب)` : 
+                    (self.config.instructorName || 'المحاضر');
+
                 gridHtml += `
                     <div class="gallery-tile instructor-tile shadow">
                         <div class="position-absolute top-0 start-0 m-2 z-1">
@@ -304,13 +385,19 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                         ${self.config.isModerator ? `
                             <video id="gallery-instructor-video" class="w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0;" autoplay playsinline muted></video>
                         ` : `
-                            <div class="d-flex flex-column align-items-center justify-content-center my-auto">
+                            <img id="live-frame-instructor" 
+                                 src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=2&t=${Date.now()}" 
+                                 class="w-100 h-100 position-absolute top-0 start-0" 
+                                 style="object-fit: cover;"
+                                 onerror="this.style.display='none'; $('#fallback-instructor-avatar').show();"
+                                 onload="if(this.naturalWidth > 60){ this.style.display='block'; $('#fallback-instructor-avatar').hide(); }">
+                            <div id="fallback-instructor-avatar" class="d-flex flex-column align-items-center justify-content-center my-auto">
                                 <div class="badge bg-danger bg-opacity-25 text-danger rounded-circle p-3 mb-2">
                                     <i class="fa fa-graduation-cap fa-2x"></i>
                                 </div>
                             </div>
                         `}
-                        <div class="tile-name mt-auto z-1">${self.config.instructorName || 'المحاضر'}</div>
+                        <div class="tile-name mt-auto z-1">${instructorTitle}</div>
                         <div class="tile-footer z-1">
                             <span class="text-success small"><i class="fa fa-circle"></i> بث مباشر</span>
                             <span class="text-white small"><i class="fa fa-microphone"></i></span>
@@ -335,12 +422,23 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
                     gridHtml += `
                         <div class="gallery-tile ${isInClass ? 'tile-active' : ''} shadow" id="gallery-tile-${st.id}">
-                            ${st.handRaised ? '<div class="hand-badge" title="رفع اليد للمشاركة">✋</div>' : ''}
+                            ${st.handRaised ? '<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>' : ''}
                             
                             ${isMe && self.localStream ? `
                                 <video class="gallery-my-video w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0;" autoplay playsinline muted></video>
                             ` : `
-                                <img src="${st.avatar}" class="tile-avatar shadow-sm" alt="${st.fullname}" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
+                                <img id="live-frame-${st.id}" 
+                                     src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${st.id}&t=${Date.now()}" 
+                                     class="w-100 h-100 tile-live-frame" 
+                                     style="object-fit: cover; position: absolute; top:0; left:0; z-index:0; ${isInClass ? '' : 'display:none;'}"
+                                     onerror="this.style.display='none'; const fb = document.getElementById('fallback-avatar-${st.id}'); if(fb) fb.style.display='block';"
+                                     onload="if(this.naturalWidth > 60){ this.style.display='block'; const fb = document.getElementById('fallback-avatar-${st.id}'); if(fb) fb.style.display='none'; }">
+                                <img id="fallback-avatar-${st.id}" 
+                                     src="${st.avatar}" 
+                                     class="tile-avatar shadow-sm" 
+                                     style="${isInClass ? 'display:none;' : ''}"
+                                     alt="${st.fullname}" 
+                                     onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
                             `}
                             
                             <div class="tile-name mt-auto z-1" title="${st.fullname}">${st.fullname} ${isMe ? '(أنت)' : ''}</div>
@@ -370,7 +468,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 }
             }
 
-            // 2. Render Speaker View Filmstrip (at bottom of speaker stage)
+            // 2. Render Speaker View Filmstrip
             const filmstripEl = $('#speaker-filmstrip');
             if (filmstripEl.length) {
                 const connectedStudents = self.participants.filter(st => st.status === 'in_class');
@@ -392,6 +490,83 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                     filmstripEl.addClass('d-none');
                 }
             }
+        }
+
+        startFrameBroadcast() {
+            const self = this;
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+
+            this.frameBroadcastInterval = setInterval(() => {
+                if (!self.localStream || self.isCamOff) return;
+
+                const videoEl = self.captureVideo || document.getElementById('local-video') || document.getElementById('gallery-instructor-video');
+                if (videoEl && videoEl.videoWidth > 0) {
+                    try {
+                        ctx.drawImage(videoEl, 0, 0, 320, 240);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+
+                        const formData = new FormData();
+                        formData.append('action', 'push');
+                        formData.append('sesskey', self.config.sesskey);
+                        formData.append('sessionid', self.config.sessionId);
+                        formData.append('frame', dataUrl);
+
+                        fetch(M.cfg.wwwroot + '/mod/liveclass/frame.php', {
+                            method: 'POST',
+                            body: formData
+                        }).catch(() => {});
+                    } catch (e) {
+                        // Suppress transient frame capture errors
+                    }
+                }
+            }, 2500);
+        }
+
+        startFrameRefreshLoop() {
+            const self = this;
+            this.frameRefreshInterval = setInterval(() => {
+                if (!self.participants || self.participants.length === 0) return;
+                const now = Date.now();
+
+                self.participants.forEach(st => {
+                    if (st.id === self.config.currentUserId) return;
+                    if (st.status === 'in_class') {
+                        const img = document.getElementById(`live-frame-${st.id}`);
+                        if (img) {
+                            const nextImg = new Image();
+                            nextImg.onload = function() {
+                                if (nextImg.naturalWidth > 60) {
+                                    img.src = nextImg.src;
+                                    img.style.display = 'block';
+                                    const fb = document.getElementById(`fallback-avatar-${st.id}`);
+                                    if (fb) fb.style.display = 'none';
+                                }
+                            };
+                            nextImg.src = `${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${st.id}&t=${now}`;
+                        }
+                    }
+                });
+
+                // For students: refresh instructor frame in speaker and gallery modes
+                if (!self.config.isModerator) {
+                    const instImg = document.getElementById('live-frame-instructor') || document.getElementById('speaker-instructor-frame');
+                    if (instImg) {
+                        const nextInst = new Image();
+                        nextInst.onload = function() {
+                            if (nextInst.naturalWidth > 60) {
+                                instImg.src = nextInst.src;
+                                instImg.style.display = 'block';
+                                const fb = document.getElementById('fallback-instructor-avatar');
+                                if (fb) fb.style.display = 'none';
+                            }
+                        };
+                        nextInst.src = `${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=2&t=${now}`;
+                    }
+                }
+            }, 2500);
         }
 
         startHeartbeatLoop() {
@@ -443,6 +618,27 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
                         if (res.participants) {
                             self.participants = res.participants;
+
+                            // Hand raise detection & chime notification
+                            const currentRaised = new Set();
+                            res.participants.forEach(st => {
+                                if (st.handRaised) {
+                                    currentRaised.add(st.id);
+                                    if (!self.raisedHandUsers.has(st.id) && st.id !== self.config.currentUserId) {
+                                        // New hand raised by student!
+                                        self.playHandRaiseChime();
+                                        $('#hand-raise-student-name').text(st.fullname);
+                                        $('#hand-raise-alert').removeClass('d-none');
+
+                                        if (self.handAlertTimeout) clearTimeout(self.handAlertTimeout);
+                                        self.handAlertTimeout = setTimeout(() => {
+                                            $('#hand-raise-alert').addClass('d-none');
+                                        }, 8000);
+                                    }
+                                }
+                            });
+                            self.raisedHandUsers = currentRaised;
+
                             self.renderParticipants();
                         }
 
@@ -492,6 +688,11 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             // Layout View Toggle Button (Speaker vs Gallery)
             $('#btn-toggle-layout').on('click', function() {
                 self.toggleLayout();
+            });
+
+            // Dismiss Hand Raise Alert Banner
+            $('#btn-dismiss-hand-alert').on('click', function() {
+                $('#hand-raise-alert').addClass('d-none');
             });
 
             $('#btn-toggle-mic').on('click', function() {
@@ -550,7 +751,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 self.fetchHeartbeat();
             });
 
-            // Mute all participants from stage
+            // Moderator Command: Mute all participants
             $('#btn-stage-mute-all').on('click', function() {
                 if (confirm('هل أنت متأكد من كتم صوت الميكروفون لجميع المتدربين؟')) {
                     fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=muteall&sesskey=' + self.config.sesskey)
@@ -563,7 +764,20 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 }
             });
 
-            // Toggle Recording (Moderator Controlled mode: recordingMode === 2)
+            // Moderator Command: Lower all hands
+            $('#btn-stage-lower-hands').on('click', function() {
+                fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=lower_all_hands&sesskey=' + self.config.sesskey)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status === 'success') {
+                            self.raisedHandUsers = new Set();
+                            $('#hand-raise-alert').addClass('d-none');
+                            self.fetchHeartbeat();
+                        }
+                    });
+            });
+
+            // Moderator Command: Toggle Recording (recordingMode === 2)
             $('#btn-toggle-recording').on('click', function() {
                 const action = self.isRecording ? 'stop_recording' : 'start_recording';
                 const confirmPrompt = self.isRecording ? 'هل أنت متأكد من إيقاف تسجيل الحصة؟' : 'هل تريد بدء تسجيل الحصة الآن؟';
@@ -763,6 +977,9 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
             if (this.pollInterval) clearInterval(this.pollInterval);
+            if (this.frameBroadcastInterval) clearInterval(this.frameBroadcastInterval);
+            if (this.frameRefreshInterval) clearInterval(this.frameRefreshInterval);
+            if (this.handAlertTimeout) clearTimeout(this.handAlertTimeout);
             if (this.localStream) this.localStream.getTracks().forEach(t => t.stop());
             if (this.screenStream) this.screenStream.getTracks().forEach(t => t.stop());
             window.location.reload();
