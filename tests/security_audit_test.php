@@ -135,7 +135,19 @@ if (strpos($frame, 'IDOR guard triggered') === false) {
     $errors[] = "frame.php missing IDOR session check";
 }
 
-// 11. Parameter sanitization scan across all PHP files
+// 11. Audit focus_logs.php (Student Focus Loss Audit Logs)
+$flogs = file_get_contents($root . '/focus_logs.php');
+if (strpos($flogs, 'require_sesskey()') === false) {
+    $errors[] = "focus_logs.php missing CSRF sesskey protection";
+}
+if (strpos($flogs, 'require_login(') === false) {
+    $errors[] = "focus_logs.php missing require_login()";
+}
+if (strpos($flogs, "require_capability('mod/liveclass:moderate'") === false) {
+    $errors[] = "focus_logs.php missing moderator capability check";
+}
+
+// 12. Parameter sanitization scan across all PHP files
 $all_php = glob($root . '/*.php');
 foreach ($all_php as $file) {
     $content = file_get_contents($file);

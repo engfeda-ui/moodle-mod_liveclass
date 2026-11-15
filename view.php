@@ -230,6 +230,9 @@ echo $OUTPUT->header();
                     <button id="btn-mute-all" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm" title="<?php echo get_string('mute_all', 'mod_liveclass'); ?>">
                         <i class="fa fa-microphone-slash"></i> <?php echo get_string('mute_all', 'mod_liveclass'); ?>
                     </button>
+                    <button id="btn-roster-lower-hands" class="btn btn-warning text-dark btn-sm rounded-pill px-3 shadow-sm <?php echo empty($roster->raised_hands_count) ? 'd-none' : ''; ?>" title="<?php echo get_string('lower_all_hands', 'mod_liveclass'); ?>">
+                        <i class="fa fa-hand-paper-o"></i> <?php echo get_string('lower_all_hands', 'mod_liveclass'); ?> (<span id="counter-raised-hands"><?php echo (int)($roster->raised_hands_count ?? 0); ?></span>)
+                    </button>
                     <button id="btn-open-poll-modal" class="btn btn-outline-info btn-sm rounded-pill px-3 shadow-sm" title="<?php echo get_string('quick_poll', 'mod_liveclass'); ?>">
                         <i class="fa fa-bar-chart"></i> <?php echo get_string('quick_poll', 'mod_liveclass'); ?>
                     </button>
@@ -343,7 +346,10 @@ echo $OUTPUT->header();
                                             <div class="d-flex align-items-center">
                                                 <img src="<?php echo $st->avatar_url; ?>" class="student-avatar me-2 ms-2 shadow-sm border" alt="<?php echo s($st->fullname); ?>">
                                                 <div>
-                                                    <div class="fw-bold"><?php echo s($st->fullname); ?></div>
+                                                    <div class="fw-bold">
+                                                        <?php echo s($st->fullname); ?>
+                                                        <span id="roster-hand-<?php echo $st->id; ?>" class="badge bg-warning text-dark border border-warning shadow-sm animate-bounce ms-2 badge-hand-raised <?php echo empty($st->hand_raised) ? 'd-none' : ''; ?>">✋ <?php echo get_string('raise_hand', 'mod_liveclass'); ?></span>
+                                                    </div>
                                                     <div class="small text-muted"><?php echo s($st->email); ?></div>
                                                 </div>
                                             </div>
@@ -383,9 +389,13 @@ echo $OUTPUT->header();
                                         </td>
                                         <td>
                                             <?php if ($st->tab_switches > 0): ?>
-                                                <span class="badge bg-danger rounded-pill px-2">
-                                                    <i class="fa fa-exclamation-triangle"></i> <?php echo $st->tab_switches; ?>
-                                                </span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0 btn-focus-detail" 
+                                                        data-userid="<?php echo $st->id; ?>" 
+                                                        data-name="<?php echo s($st->fullname); ?>" 
+                                                        data-count="<?php echo $st->tab_switches; ?>" 
+                                                        title="<?php echo get_string('focus_alerts_desc', 'mod_liveclass'); ?>">
+                                                    <i class="fa fa-exclamation-triangle"></i> <?php echo $st->tab_switches; ?> <span style="font-size:0.75rem;">(تفاصيل)</span>
+                                                </button>
                                             <?php else: ?>
                                                 <span class="text-muted small">-</span>
                                             <?php endif; ?>
@@ -454,6 +464,45 @@ echo $OUTPUT->header();
                             <h6 class="fw-bold text-success mb-2"><i class="fa fa-pie-chart"></i> <?php echo get_string('poll_results', 'mod_liveclass'); ?> (<span id="poll-results-total">0</span> إجابة)</h6>
                             <div id="poll-results-bars"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Focus Alerts Breakdown Modal for Moderator -->
+        <div id="modal-focus-detail" class="modal fade" tabindex="-1" style="display:none; background: rgba(0,0,0,0.6); z-index: 1085;">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="fa fa-exclamation-triangle"></i> <?php echo get_string('focus_modal_title', 'mod_liveclass'); ?></h5>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-circle" id="btn-close-focus-modal">&times;</button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info py-2 px-3 small mb-3">
+                            <i class="fa fa-info-circle me-1"></i> <?php echo get_string('focus_alerts_desc', 'mod_liveclass'); ?>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0 fw-bold"><i class="fa fa-user me-1"></i> <span id="focus-modal-student-name">...</span></h6>
+                            <span class="badge bg-danger rounded-pill px-3 py-2" id="focus-modal-count-badge">0 تنبيه</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>وقت الحدث</th>
+                                        <th>نوع التنبيه</th>
+                                        <th>التفاصيل</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="focus-modal-tbody">
+                                    <tr><td colspan="4" class="text-center py-3 text-muted">جاري تحميل السجلات...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light py-2">
+                        <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" id="btn-close-focus-modal-footer">إغلاق</button>
                     </div>
                 </div>
             </div>
@@ -582,13 +631,37 @@ echo $OUTPUT->header();
                             document.getElementById('counter-online').textContent = d.online_not_in_class_count;
                             document.getElementById('counter-absent').textContent = d.absent_count;
 
+                            // Update active hand raises counter and button
+                            var lowerHandsRosterBtn = document.getElementById('btn-roster-lower-hands');
+                            var counterRaised = document.getElementById('counter-raised-hands');
+                            var raisedCount = d.raised_hands_count || 0;
+                            if (counterRaised) counterRaised.textContent = raisedCount;
+                            if (lowerHandsRosterBtn) {
+                                if (raisedCount > 0) {
+                                    lowerHandsRosterBtn.classList.remove('d-none');
+                                } else {
+                                    lowerHandsRosterBtn.classList.add('d-none');
+                                }
+                            }
+
                             if (d.students && d.students.length > 0) {
                                 d.students.forEach(function(st) {
                                     var row = document.getElementById('student-row-' + st.id);
                                     if (row) {
                                         var statusTd = row.cells[2];
                                         var progressTd = row.cells[3];
+                                        var focusTd = row.cells[5];
                                         var actionsTd = row.cells[6];
+
+                                        // Hand raised badge in student name
+                                        var handBadge = document.getElementById('roster-hand-' + st.id);
+                                        if (handBadge) {
+                                            if (st.hand_raised) {
+                                                handBadge.classList.remove('d-none');
+                                            } else {
+                                                handBadge.classList.add('d-none');
+                                            }
+                                        }
 
                                         if (st.status === 'in_class') {
                                             statusTd.innerHTML = '<span class="badge bg-success-subtle text-success border border-success px-2 py-1">' +
@@ -618,6 +691,14 @@ echo $OUTPUT->header();
                                                 '</div>' +
                                                 '<div class="small text-muted">' + st.duration_mins + ' دقيقة</div>';
                                         }
+
+                                        if (focusTd) {
+                                            if (st.tab_switches > 0) {
+                                                focusTd.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0 btn-focus-detail" data-userid="' + st.id + '" data-name="' + encodeURIComponent(st.fullname) + '" data-count="' + st.tab_switches + '" title="<?php echo get_string('focus_alerts_desc', 'mod_liveclass'); ?>"><i class="fa fa-exclamation-triangle"></i> ' + st.tab_switches + ' <span style="font-size:0.75rem;">(تفاصيل)</span></button>';
+                                            } else {
+                                                focusTd.innerHTML = '<span class="text-muted small">-</span>';
+                                            }
+                                        }
                                     }
                                 });
                             }
@@ -636,6 +717,92 @@ echo $OUTPUT->header();
 
             // Auto-refresh every 12 seconds for moderator
             setInterval(refreshRoster, 12000);
+
+            // Lower all hands button handler
+            var lowerHandsRosterBtn = document.getElementById('btn-roster-lower-hands');
+            if (lowerHandsRosterBtn) {
+                lowerHandsRosterBtn.addEventListener('click', function() {
+                    if (confirm('هل أنت متأكد من رغبتك في خفض جميع أيدي المتدربين؟')) {
+                        lowerHandsRosterBtn.disabled = true;
+                        fetch('control.php?cmid=' + cmid + '&action=lower_all_hands&sesskey=' + sesskey)
+                            .then(function(r) { return r.json(); })
+                            .then(function(res) {
+                                lowerHandsRosterBtn.disabled = false;
+                                if (res.status === 'success') {
+                                    lowerHandsRosterBtn.classList.add('d-none');
+                                    document.querySelectorAll('.badge-hand-raised').forEach(function(b) {
+                                        b.classList.add('d-none');
+                                    });
+                                    var rhCounter = document.getElementById('counter-raised-hands');
+                                    if (rhCounter) rhCounter.textContent = '0';
+                                }
+                            })
+                            .catch(function() {
+                                lowerHandsRosterBtn.disabled = false;
+                            });
+                    }
+                });
+            }
+
+            // Focus detail modal handlers
+            var focusModal = document.getElementById('modal-focus-detail');
+            var closeFocusBtn = document.getElementById('btn-close-focus-modal');
+            var closeFocusBtnFooter = document.getElementById('btn-close-focus-modal-footer');
+
+            function hideFocusModal() {
+                if (focusModal) {
+                    focusModal.style.display = 'none';
+                    focusModal.classList.remove('show');
+                }
+            }
+            if (closeFocusBtn) closeFocusBtn.addEventListener('click', hideFocusModal);
+            if (closeFocusBtnFooter) closeFocusBtnFooter.addEventListener('click', hideFocusModal);
+
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.btn-focus-detail');
+                if (!btn) return;
+                var uid = btn.getAttribute('data-userid');
+                var sname = btn.getAttribute('data-name');
+                if (sname && sname.indexOf('%') !== -1) {
+                    try { sname = decodeURIComponent(sname); } catch(err) {}
+                }
+                var count = btn.getAttribute('data-count');
+
+                var nameEl = document.getElementById('focus-modal-student-name');
+                if (nameEl) nameEl.textContent = sname;
+                var countBadge = document.getElementById('focus-modal-count-badge');
+                if (countBadge) countBadge.textContent = count + ' تنبيه';
+                var tbody = document.getElementById('focus-modal-tbody');
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted"><i class="fa fa-spinner fa-spin"></i> جاري تحميل تفاصيل تحركات الطالب...</td></tr>';
+
+                if (focusModal) {
+                    focusModal.style.display = 'block';
+                    focusModal.classList.add('show');
+                }
+
+                fetch('focus_logs.php?cmid=' + cmid + '&userid=' + uid + '&sesskey=' + sesskey)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.status === 'success' && data.logs && data.logs.length > 0) {
+                            var html = '';
+                            data.logs.forEach(function(item, idx) {
+                                var badgeClass = (item.event_type === 'tab_hidden') ? 'bg-danger' : ((item.event_type === 'focus_lost') ? 'bg-warning text-dark' : 'bg-success');
+                                html += '<tr>' +
+                                    '<td>' + (idx + 1) + '</td>' +
+                                    '<td class="font-monospace small">' + item.time + '</td>' +
+                                    '<td><span class="badge ' + badgeClass + '">' + item.label + '</span></td>' +
+                                    '<td class="small text-muted">' + (item.details ? item.details : '-') + '</td>' +
+                                    '</tr>';
+                            });
+                            tbody.innerHTML = html;
+                        } else {
+                            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">لا توجد سجلات مغادرة مسجلة لهذا الطالب في الجلسة الحالية.</td></tr>';
+                        }
+                    })
+                    .catch(function() {
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-danger"><i class="fa fa-exclamation-triangle"></i> تعذر تحميل التفاصيل.</td></tr>';
+                    });
+            });
 
             // Nudge button handler
             document.addEventListener('click', function(e) {

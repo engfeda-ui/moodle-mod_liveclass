@@ -149,4 +149,10 @@ $string['speaker_view'] = 'وضع الشرح';
 $string['lower_all_hands'] = 'خفض جميع الأيادي';
 $string['lower_all_hands_success'] = 'تم خفض جميع أيدي المتدربين';
 $string['hand_raised_alert'] = 'قام الطالب {$a} برفع اليد للمشاركة!';
+$string['focus_alerts_desc'] = 'يرصد هذا المؤشر عدد المرات التي غادر فيها المتدرب نافذة الشرح المباشر (مثل: تصغير المتصفح، أو فتح علامة تبويب أخرى، أو الانتقال لتطبيق آخر).';
+$string['focus_tab_hidden'] = 'مغادرة نافذة الحصة (تبديل التبويب)';
+$string['focus_window_lost'] = 'فقدان التركيز على النافذة';
+$string['focus_tab_restored'] = 'العودة لشاشة الحصة المباشرة';
+$string['focus_modal_title'] = 'سجل تنبيهات التركيز والانتباه للمتدرب';
+$string['hand_raised_badge'] = 'رافع يده (يطلب المشاركة)';
 

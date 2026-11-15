@@ -182,6 +182,21 @@ class roster_manager {
             foreach ($tab_logs as $tl) {
                 $tab_switch_counts[$tl->userid] = (int)$tl->tab_switches;
             }
+
+            // Active raised hands in this session.
+            $rh_records = $DB->get_records_sql("
+                SELECT p1.userid 
+                  FROM {liveclass_presence_logs} p1
+                 WHERE p1.sessionid = :sid 
+                   AND p1.timestamp > :recent
+                   AND p1.id = (SELECT MAX(p2.id) FROM {liveclass_presence_logs} p2 
+                                 WHERE p2.sessionid = :sid2 AND p2.userid = p1.userid 
+                                   AND p2.event_type IN ('raise_hand', 'lower_hand', 'left_class'))
+                   AND p1.event_type = 'raise_hand'
+            ", ['sid' => $session_id, 'sid2' => $session_id, 'recent' => time() - 600]);
+            foreach ($rh_records as $rh) {
+                $raised_hands[$rh->userid] = true;
+            }
         }
 
         // Fetch course last access for all students.
@@ -250,6 +265,8 @@ class roster_manager {
             // User avatar URL.
             $avatar_url = (new \moodle_url('/user/pix.php/' . $userid . '/f2.jpg'))->out(false);
 
+            $is_hand_raised = !empty($raised_hands[$userid]) && $is_connected_now;
+
             $students[] = (object)[
                 'id'                 => $userid,
                 'fullname'           => fullname($user),
@@ -263,13 +280,20 @@ class roster_manager {
                 'duration_mins'      => $duration_mins,
                 'percent'            => $percent,
                 'tab_switches'       => $tab_switches,
+                'hand_raised'        => $is_hand_raised,
                 'last_seen_str'      => $last_seen_str,
                 'last_active_time'   => $last_active_time
             ];
         }
 
-        // Sort students: in_class first, then online_not_in_class, then absent.
+        // Sort students: Hand raised first, then in_class, then online_not_in_class, then absent.
         usort($students, function($a, $b) {
+            if (!empty($a->hand_raised) && empty($b->hand_raised)) {
+                return -1;
+            }
+            if (empty($a->hand_raised) && !empty($b->hand_raised)) {
+                return 1;
+            }
             $order = ['in_class' => 1, 'online_not_in_class' => 2, 'absent_offline' => 3];
             $oa = $order[$a->status];
             $ob = $order[$b->status];
@@ -281,6 +305,7 @@ class roster_manager {
 
         $total_students = count($students);
         $attendance_rate = $total_students > 0 ? round(($in_class_count / $total_students) * 100) : 0;
+        $raised_hands_count = count(array_filter($students, function($s) { return !empty($s->hand_raised); }));
 
         return (object)[
             'group_info'                => $group_info,
@@ -290,6 +315,7 @@ class roster_manager {
             'online_not_in_class_count' => $online_not_in_class_count,
             'absent_count'              => $absent_count,
             'attendance_rate'           => $attendance_rate,
+            'raised_hands_count'        => $raised_hands_count,
             'students'                  => $students
         ];
     }

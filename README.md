@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.3-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.4-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,11 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.4] - 2026-11-15
+- **Interactive Focus Alerts Breakdown (`focus_logs.php`)**: Converted static focus alert counter badges into interactive buttons opening a modal (`#modal-focus-detail`) displaying granular timestamps, event types (tab hidden, window focus lost, tab restored), and activity context for each student.
+- **Roster Hand-Raise Visual Indicators & Sync**: Added animated `✋` badges next to student names in the Presence Command Center table, sorted active hand-raisers to the top of the table, and synchronized real-time hand-raise state with a "Lower All Hands" button in the table header.
+- **Security & RBAC Enforcement**: Audited `focus_logs.php` with CSRF sesskey protection, `mod/liveclass:moderate` role verification, and verified zero IDOR surface.
 
 ### [v1.1.3] - 2026-11-15
 - **Full LiveKit SFU WebRTC 30fps Continuous Video Engine**: Packaged and integrated the official `livekit-client` UMD WebRTC bundle (`amd/src/livekit_client.js`) into Moodle AMD loader, enabling direct real-time peer media streaming (`Room.connect()`, `TrackSubscribed`, `publishTrack()`).

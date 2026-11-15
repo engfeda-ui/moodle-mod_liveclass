@@ -149,4 +149,10 @@ $string['speaker_view'] = 'Speaker View';
 $string['lower_all_hands'] = 'Lower All Hands';
 $string['lower_all_hands_success'] = 'All student hands have been lowered';
 $string['hand_raised_alert'] = 'Student {$a} requested to speak (hand raised)!';
+$string['focus_alerts_desc'] = 'Focus alerts track when learners navigate away from the live lecture window (e.g., minimizing browser, opening another tab, or switching apps).';
+$string['focus_tab_hidden'] = 'Switched Tab / Minimized Window';
+$string['focus_window_lost'] = 'Window Lost Focus';
+$string['focus_tab_restored'] = 'Returned to Live Class';
+$string['focus_modal_title'] = 'Learner Focus & Attention Audit';
+$string['hand_raised_badge'] = 'Hand Raised (Requesting to Speak)';
 
