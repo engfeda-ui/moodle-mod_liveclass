@@ -149,15 +149,23 @@ class roster_manager {
                 $attendance_records[$row->userid] = $row;
             }
 
-            // Find currently active intervals (leave_time is null/0 or left within last 90 seconds).
+            // Find currently active intervals (active within last 90 seconds).
             $recent_limit = time() - 90;
             $active_users = $DB->get_records_sql("
                 SELECT DISTINCT a.userid 
                   FROM {liveclass_intervals} i
                   JOIN {liveclass_attendance} a ON a.id = i.attendanceid
                  WHERE a.sessionid = :sessionid
-                   AND (i.leave_time IS NULL OR i.leave_time = 0 OR i.leave_time > :recent)
-            ", ['sessionid' => $session_id, 'recent' => $recent_limit]);
+                   AND (
+                        (i.leave_time = 0 AND (a.timemodified > :recent OR i.join_time > :recent2))
+                        OR i.leave_time > :recent3
+                   )
+            ", [
+                'sessionid' => $session_id,
+                'recent'    => $recent_limit,
+                'recent2'   => $recent_limit,
+                'recent3'   => $recent_limit
+            ]);
 
             foreach ($active_users as $au) {
                 $active_interval_userids[$au->userid] = true;

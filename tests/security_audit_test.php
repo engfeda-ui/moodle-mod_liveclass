@@ -105,7 +105,22 @@ if (strpos($webhook, 'hash_hmac') === false) {
     $errors[] = "webhook.php missing HMAC signature verification";
 }
 
-// 9. Parameter sanitization scan across all PHP files
+// 9. Audit heartbeat.php (Client Presence & Telemetry Heartbeat)
+$heartbeat = file_get_contents($root . '/heartbeat.php');
+if (strpos($heartbeat, 'require_sesskey()') === false && strpos($heartbeat, 'confirm_sesskey()') === false) {
+    $errors[] = "heartbeat.php missing CSRF sesskey protection";
+}
+if (strpos($heartbeat, 'require_login()') === false) {
+    $errors[] = "heartbeat.php missing require_login()";
+}
+if (strpos($heartbeat, "require_capability('mod/liveclass:view'") === false) {
+    $errors[] = "heartbeat.php missing view capability check";
+}
+if (strpos($heartbeat, 'IDOR guard triggered') === false) {
+    $errors[] = "heartbeat.php missing IDOR session check";
+}
+
+// 10. Parameter sanitization scan across all PHP files
 $all_php = glob($root . '/*.php');
 foreach ($all_php as $file) {
     $content = file_get_contents($file);

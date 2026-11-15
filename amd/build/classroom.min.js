@@ -17,9 +17,11 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             this.isMicMuted = false;
             this.isCamOff = false;
             this.isScreenSharing = false;
+            this.isHandRaised = false;
             this.tabSwitchCount = 0;
             this.elapsedSeconds = 0;
             this.timerInterval = null;
+            this.heartbeatInterval = null;
             this.pollInterval = null;
             this.activePollId = 0;
             this.isRecording = (this.config.recordingMode === 1);
@@ -49,11 +51,78 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                     self.logEvent('focus_lost', 'Window lost focus');
                 });
             }
+
+            // Clean leave on window unload.
+            window.addEventListener('beforeunload', () => {
+                self.sendLeaveBeacon();
+            });
         }
 
         startClassroom() {
             const self = this;
             const stage = $('#liveclass-stage');
+            const instructorLabel = self.config.instructorName || 'المدرب';
+
+            // Distinct Viewport layouts: Moderator vs Student
+            const mainViewportHtml = self.config.isModerator ? `
+                <div id="video-grid" class="w-100 h-100 d-flex flex-wrap justify-content-center align-items-center p-2 gap-2 position-relative">
+                    <div class="video-card local-video-card position-relative bg-dark rounded overflow-hidden shadow" style="width: 100%; max-width: 900px; height: 500px;">
+                        <video id="local-video" class="w-100 h-100" style="object-fit: cover;" autoplay playsinline muted></video>
+                        <div class="position-absolute bottom-0 start-0 p-2 bg-dark bg-opacity-75 text-white m-2 rounded small">
+                            <i class="fa fa-shield text-danger"></i> ${self.config.displayName} (المدرب - شاشة البث للشعبة)
+                        </div>
+                    </div>
+                </div>
+            ` : `
+                <div class="w-100 h-100 d-flex justify-content-center align-items-center p-2 position-relative">
+                    <!-- Instructor Stage Screen -->
+                    <div class="instructor-stage-card shadow-lg d-flex flex-column justify-content-between p-3" style="width: 100%; max-width: 960px; height: 500px;">
+                        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-danger rounded-pill px-3 py-1 animate-pulse">
+                                    <i class="fa fa-circle"></i> مباشر
+                                </span>
+                                <span class="text-white fw-bold">
+                                    <i class="fa fa-video-camera text-primary"></i> بث وشرح المحاضر: <span class="text-info">${instructorLabel}</span>
+                                </span>
+                            </div>
+                            <div class="classmates-strip shadow-sm" id="classmates-counter-badge">
+                                <i class="fa fa-users text-info"></i> <span id="online-students-count">1</span> متواجدون في القاعة
+                            </div>
+                        </div>
+
+                        <!-- Central Visual Presentation Stage -->
+                        <div class="d-flex flex-column justify-content-center align-items-center text-center my-auto py-4">
+                            <div class="mb-3">
+                                <span class="badge bg-primary bg-opacity-25 text-info p-3 rounded-circle shadow">
+                                    <i class="fa fa-graduation-cap fa-4x"></i>
+                                </span>
+                            </div>
+                            <h4 class="text-white fw-bold mb-1">${instructorLabel}</h4>
+                            <p class="text-light opacity-75 small mb-3">
+                                <i class="fa fa-podcast text-success"></i> القاعة الافتراضية نشطة وبث الشرح جاري الآن
+                            </p>
+                            <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill">
+                                <i class="fa fa-check-circle"></i> أنت متصل ومشارك في الحصة بنجاح
+                            </span>
+                        </div>
+
+                        <!-- Bottom Status Bar -->
+                        <div class="d-flex justify-content-between align-items-center text-muted small pt-2 border-top border-secondary">
+                            <span><i class="fa fa-info-circle"></i> يتم احتساب وقت تواجدك ومشاركتك آلياً بدقة</span>
+                            <span id="student-live-pct" class="badge bg-secondary">0% الحضور</span>
+                        </div>
+                    </div>
+
+                    <!-- Floating Student Self-Preview (PiP) -->
+                    <div class="student-pip-preview shadow-lg">
+                        <video id="local-video" class="w-100 h-100" style="object-fit: cover;" autoplay playsinline muted></video>
+                        <div class="position-absolute bottom-0 start-0 w-100 p-1 bg-dark bg-opacity-75 text-white text-center text-truncate" style="font-size: 0.75rem;">
+                            <i class="fa fa-user"></i> ${self.config.displayName} (صورتي ومشاركتي)
+                        </div>
+                    </div>
+                </div>
+            `;
 
             stage.html(`
                 <div class="liveclass-active-workspace w-100 h-100 d-flex flex-column" style="min-height: 580px;">
@@ -76,14 +145,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
 
                     <!-- Main Media Viewport -->
                     <div class="liveclass-media-viewport flex-grow-1 d-flex position-relative bg-black">
-                        <div id="video-grid" class="w-100 h-100 d-flex flex-wrap justify-content-center align-items-center p-2 gap-2 position-relative">
-                            <div class="video-card local-video-card position-relative bg-dark rounded overflow-hidden shadow" style="width: 100%; max-width: 800px; height: 450px;">
-                                <video id="local-video" class="w-100 h-100" style="object-fit: cover;" autoplay playsinline muted></video>
-                                <div class="position-absolute bottom-0 start-0 p-2 bg-dark bg-opacity-75 text-white m-2 rounded small">
-                                    <i class="fa fa-user"></i> ${self.config.displayName} ${self.config.isModerator ? '(المدرب)' : ''}
-                                </div>
-                            </div>
-                        </div>
+                        ${mainViewportHtml}
 
                         <!-- Spontaneous Poll Overlay for Students -->
                         <div id="poll-overlay" class="position-absolute top-50 start-50 translate-middle p-4 bg-white text-dark rounded-3 shadow-lg border border-warning d-none" style="z-index: 1060; width: 90%; max-width: 480px;">
@@ -107,39 +169,55 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                         <div id="presence-alert" class="position-absolute top-0 start-50 translate-middle-x mt-3 alert alert-warning shadow d-none" style="z-index: 1050;">
                             <i class="fa fa-exclamation-triangle"></i> <strong>تنبيه:</strong> لقد قمت بمغادرة نافذة الحصة! يتم تسجيل هذا السلوك آلياً في سجل التواجد.
                         </div>
+
+                        <!-- System Mute Notification Toast -->
+                        <div id="mute-notice" class="position-absolute top-0 start-50 translate-middle-x mt-3 alert alert-info shadow d-none" style="z-index: 1050;">
+                            <i class="fa fa-microphone-slash"></i> <strong>تنبيه:</strong> قام المحاضر بكتم صوت الميكروفون لجميع المتدربين.
+                        </div>
                     </div>
 
                     <!-- Bottom Controls Toolbar -->
-                    <div class="liveclass-toolbar bg-dark p-3 d-flex justify-content-center align-items-center gap-3 border-top border-secondary flex-wrap">
-                        <button id="btn-toggle-mic" class="btn btn-outline-light rounded-circle p-3" title="كتم/تشغيل المايك">
-                            <i class="fa fa-microphone fa-lg"></i>
-                        </button>
-                        <button id="btn-toggle-cam" class="btn btn-outline-light rounded-circle p-3" title="تشغيل/إيقاف الكاميرا">
-                            <i class="fa fa-video-camera fa-lg"></i>
-                        </button>
-                        <button id="btn-toggle-screen" class="btn btn-outline-light rounded-circle p-3" title="مشاركة الشاشة">
-                            <i class="fa fa-desktop fa-lg"></i>
-                        </button>
-                        <button id="btn-raise-hand" class="btn btn-outline-warning rounded-circle p-3" title="رفع اليد">
-                            <i class="fa fa-hand-paper-o fa-lg"></i>
-                        </button>
-                        ${self.config.isModerator ? `
-                            <button id="btn-stage-mute-all" class="btn btn-danger rounded-pill px-3 py-2 shadow-sm" title="كتم صوت جميع الطلاب">
-                                <i class="fa fa-microphone-slash"></i> كتم الجميع
+                    <div class="liveclass-toolbar bg-dark border-top border-secondary">
+                        <!-- Group 1: Media Audio/Video Controls -->
+                        <div class="toolbar-group">
+                            <button id="btn-toggle-mic" class="btn btn-outline-light rounded-circle" title="كتم/تشغيل المايك">
+                                <i class="fa fa-microphone fa-lg"></i>
                             </button>
-                            ${self.config.recordingMode === 2 ? `
-                                <button id="btn-toggle-recording" class="btn ${self.isRecording ? 'btn-danger' : 'btn-outline-danger'} rounded-pill px-3 py-2 shadow-sm" title="بدء / إيقاف التسجيل">
-                                    <i class="fa ${self.isRecording ? 'fa-stop' : 'fa-circle'}"></i> 
-                                    <span id="recording-btn-label">${self.isRecording ? 'إيقاف التسجيل' : 'بدء التسجيل'}</span>
+                            <button id="btn-toggle-cam" class="btn btn-outline-light rounded-circle" title="تشغيل/إيقاف الكاميرا">
+                                <i class="fa fa-video-camera fa-lg"></i>
+                            </button>
+                            <button id="btn-toggle-screen" class="btn btn-outline-light rounded-circle" title="مشاركة الشاشة">
+                                <i class="fa fa-desktop fa-lg"></i>
+                            </button>
+                            <button id="btn-raise-hand" class="btn btn-outline-warning rounded-circle" title="رفع اليد للمشاركة">
+                                <i class="fa fa-hand-paper-o fa-lg"></i>
+                            </button>
+                        </div>
+
+                        <!-- Group 2: Moderator Special Commands -->
+                        ${self.config.isModerator ? `
+                            <div class="toolbar-group">
+                                <button id="btn-stage-mute-all" class="btn btn-danger rounded-pill shadow-sm" title="كتم صوت جميع الطلاب">
+                                    <i class="fa fa-microphone-slash"></i> كتم الجميع
                                 </button>
-                            ` : ''}
+                                ${self.config.recordingMode === 2 ? `
+                                    <button id="btn-toggle-recording" class="btn ${self.isRecording ? 'btn-danger' : 'btn-outline-danger'} rounded-pill shadow-sm" title="بدء / إيقاف التسجيل">
+                                        <i class="fa ${self.isRecording ? 'fa-stop' : 'fa-circle'}"></i> 
+                                        <span id="recording-btn-label">${self.isRecording ? 'إيقاف التسجيل' : 'بدء التسجيل'}</span>
+                                    </button>
+                                ` : ''}
+                            </div>
                         ` : ''}
-                        <button id="btn-fullscreen" class="btn btn-outline-light rounded-circle p-3" title="ملء الشاشة">
-                            <i class="fa fa-arrows-alt fa-lg"></i>
-                        </button>
-                        <button id="btn-leave" class="btn btn-danger rounded-pill px-4 ms-2" title="مغادرة الحصة">
-                            <i class="fa fa-phone"></i> مغادرة
-                        </button>
+
+                        <!-- Group 3: Viewport & Exit Actions -->
+                        <div class="toolbar-group">
+                            <button id="btn-fullscreen" class="btn btn-outline-light rounded-circle" title="ملء الشاشة">
+                                <i class="fa fa-arrows-alt fa-lg"></i>
+                            </button>
+                            <button id="btn-leave" class="btn btn-danger rounded-pill shadow-sm" title="مغادرة الحصة">
+                                <i class="fa fa-phone"></i> مغادرة
+                            </button>
+                        </div>
                     </div>
                 </div>
             `);
@@ -148,6 +226,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             self.startAttendanceTimer();
             self.bindToolbarControls();
             self.startPollWatcher();
+            self.startHeartbeatLoop();
         }
 
         async initMediaStream() {
@@ -167,6 +246,85 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 } catch (e) {
                     console.error('[LiveClass] Complete media permission failure:', e);
                 }
+            }
+        }
+
+        startHeartbeatLoop() {
+            const self = this;
+
+            // 1. Send immediate Join notice to register active interval
+            $.ajax({
+                url: M.cfg.wwwroot + '/mod/liveclass/heartbeat.php',
+                type: 'POST',
+                data: {
+                    action: 'join',
+                    sesskey: self.config.sesskey,
+                    cmid: self.config.cmid,
+                    sessionid: self.config.sessionId
+                },
+                dataType: 'json'
+            });
+
+            // 2. Continuous 12-second heartbeat loop
+            this.heartbeatInterval = setInterval(() => {
+                $.ajax({
+                    url: M.cfg.wwwroot + '/mod/liveclass/heartbeat.php',
+                    type: 'POST',
+                    data: {
+                        action: 'heartbeat',
+                        sesskey: self.config.sesskey,
+                        cmid: self.config.cmid,
+                        sessionid: self.config.sessionId,
+                        mic: self.isMicMuted ? 0 : 1,
+                        cam: self.isCamOff ? 0 : 1,
+                        hand: self.isHandRaised ? 1 : 0,
+                        screen: self.isScreenSharing ? 1 : 0
+                    },
+                    dataType: 'json',
+                    success: function(res) {
+                        if (res && res.status === 'success') {
+                            if (res.active_students) {
+                                $('#online-students-count').text(res.active_students);
+                            }
+
+                            // Remote Mute enforcement from moderator
+                            if (res.must_mute && !self.isMicMuted && !self.config.isModerator) {
+                                self.muteLocalMic();
+                                $('#mute-notice').removeClass('d-none');
+                                setTimeout(() => { $('#mute-notice').addClass('d-none'); }, 5000);
+                            }
+
+                            // Recording badge sync
+                            if (res.is_recording) {
+                                $('#recording-badge').removeClass('d-none');
+                            } else if (self.config.recordingMode !== 1) {
+                                $('#recording-badge').addClass('d-none');
+                            }
+                        }
+                    }
+                });
+            }, 12000);
+        }
+
+        muteLocalMic() {
+            if (this.localStream) {
+                const audioTrack = this.localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    this.isMicMuted = true;
+                    audioTrack.enabled = false;
+                    $('#btn-toggle-mic').removeClass('btn-outline-light').addClass('btn-danger');
+                    $('#btn-toggle-mic').find('i').removeClass('fa-microphone').addClass('fa-microphone-slash');
+                }
+            }
+        }
+
+        sendLeaveBeacon() {
+            const url = M.cfg.wwwroot + '/mod/liveclass/heartbeat.php?action=leave&cmid=' + 
+                        this.config.cmid + '&sessionid=' + this.config.sessionId + '&sesskey=' + this.config.sesskey;
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(url);
+            } else {
+                $.ajax({ url: url, type: 'GET', async: false });
             }
         }
 
@@ -223,8 +381,9 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
             });
 
             $('#btn-raise-hand').on('click', function() {
+                self.isHandRaised = !self.isHandRaised;
                 $(this).toggleClass('btn-outline-warning btn-warning text-dark');
-                self.logEvent('raise_hand', 'Student raised hand');
+                self.logEvent(self.isHandRaised ? 'raise_hand' : 'lower_hand', 'Student toggled hand raise');
             });
 
             // Mute all participants from stage
@@ -310,7 +469,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                         answer: selected
                     },
                     dataType: 'json',
-                    success: function(resp) {
+                    success: function() {
                         $('#poll-overlay').addClass('d-none');
                         self.logEvent('poll_answered', `Answered poll ${self.activePollId}: ${selected}`);
                     }
@@ -346,10 +505,12 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                 const currentPct = Math.min(100, Math.round((self.elapsedSeconds / totalSessionSecs) * 100));
 
                 $('#attendance-status-badge').html(`<i class="fa fa-percent"></i> ${currentPct}% الحضور`);
+                $('#student-live-pct').text(`${currentPct}% الحضور`);
                 $('#attendance-progress').css('width', currentPct + '%').text(currentPct + '%');
 
                 if (currentPct >= self.config.minAttendancePct) {
                     $('#attendance-progress').removeClass('bg-info').addClass('bg-success');
+                    $('#attendance-status-badge').removeClass('bg-info').addClass('bg-success');
                 }
             }, 1000);
         }
@@ -370,7 +531,7 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
                         }
                     }
                 });
-            }, 10000);
+            }, 8000);
         }
 
         showPollPopup(poll) {
@@ -434,7 +595,9 @@ define(['jquery', 'core/notification', 'core/ajax'], function($, Notification, A
         }
 
         leaveClassroom() {
+            this.sendLeaveBeacon();
             if (this.timerInterval) clearInterval(this.timerInterval);
+            if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
             if (this.pollInterval) clearInterval(this.pollInterval);
             if (this.localStream) this.localStream.getTracks().forEach(t => t.stop());
             if (this.screenStream) this.screenStream.getTracks().forEach(t => t.stop());

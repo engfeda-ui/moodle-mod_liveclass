@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.0.9-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,13 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.0] - 2026-11-15
+- **Toolbar Icon Alignment & Overflow Fix**: Refactored `.liveclass-toolbar` styling and HTML markup, separating circular buttons (46x46px) and text-labeled pill buttons (`width: auto`, `padding: 0 18px`) into semantic flex groups to eliminate overlaps between "Mute All", "Recording", and "Leave" buttons.
+- **Automated Client Presence Heartbeat & Instant In-Class Transition**: Added dedicated `heartbeat.php` endpoint and 12-second client heartbeat loop (`amd/src/classroom.js`) to automatically register student entry intervals, actively updating attendance seconds and flipping status from "Active on Moodle (Not in Class)" to "In Class (Green)".
+- **Role-Aware Virtual Stage Layout**: Redesigned classroom viewport for students to prominently showcase the Instructor's broadcast platform (identity, live presence, and active stage) while docking the student's self-preview into an elegant floating Picture-in-Picture (PiP) card with an active classmates counter.
+- **Dynamic Roster Live Sync**: Enhanced Instructor Command Center real-time updater to refresh student table rows and progress bars live every 12 seconds.
+- **Parity Expansion**: Aligned Arabic and English language packs to 108 keys with 100% parity.
 
 ### [v1.0.9] - 2026-11-12
 - Untracked internal agent directive files (`AGENTS.md`) from repository index.

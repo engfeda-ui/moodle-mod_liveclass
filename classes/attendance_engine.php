@@ -65,7 +65,19 @@ class attendance_engine {
             $attendanceid = $attendance->id;
         }
 
-        // 2. Open a new discrete interval segment.
+        // 2. Close any lingering open intervals before creating a fresh one.
+        $open_intervals = $DB->get_records_select(
+            'liveclass_intervals',
+            'attendanceid = :attid AND (leave_time = 0 OR leave_time IS NULL)',
+            ['attid' => $attendanceid]
+        );
+        foreach ($open_intervals as $inv) {
+            $inv->leave_time = $time;
+            $inv->duration_seconds = max(0, $time - $inv->join_time);
+            $DB->update_record('liveclass_intervals', $inv);
+        }
+
+        // 3. Open a new discrete interval segment.
         $interval = (object)[
             'attendanceid'     => $attendanceid,
             'join_time'        => $time,
@@ -151,6 +163,105 @@ class attendance_engine {
         }
 
         return true;
+    }
+
+    /**
+     * Periodic heartbeat from connected client to maintain active presence and calculate time-on-task.
+     *
+     * @param int $sessionid Session record ID.
+     * @param int $userid Moodle user ID.
+     * @param int $timestamp Current timestamp.
+     * @param array $client_state Client telemetry state (mic, cam, hand, screen).
+     * @return array Real-time attendance and session telemetry.
+     */
+    public static function heartbeat(int $sessionid, int $userid, int $timestamp = 0, array $client_state = []): array {
+        global $DB;
+
+        $time = $timestamp ?: time();
+
+        $session = $DB->get_record('liveclass_sessions', ['id' => $sessionid]);
+        if (!$session) {
+            return ['status' => 'error', 'message' => 'Session not found'];
+        }
+
+        $liveclass = $DB->get_record('liveclass', ['id' => $session->liveclassid]);
+        if (!$liveclass) {
+            return ['status' => 'error', 'message' => 'LiveClass not found'];
+        }
+
+        // 1. Ensure master attendance record exists.
+        $attendance = $DB->get_record('liveclass_attendance', [
+            'sessionid' => $sessionid,
+            'userid'    => $userid
+        ]);
+
+        if (!$attendance) {
+            self::participant_joined($sessionid, $userid, $time);
+            $attendance = $DB->get_record('liveclass_attendance', [
+                'sessionid' => $sessionid,
+                'userid'    => $userid
+            ]);
+        }
+
+        // 2. Find currently open interval or create if none open.
+        $open_interval = $DB->get_record_select(
+            'liveclass_intervals',
+            'attendanceid = :attid AND (leave_time = 0 OR leave_time IS NULL)',
+            ['attid' => $attendance->id],
+            '*',
+            IGNORE_MULTIPLE
+        );
+
+        if (!$open_interval) {
+            $interval = (object)[
+                'attendanceid'     => $attendance->id,
+                'join_time'        => $time,
+                'leave_time'       => 0,
+                'duration_seconds' => 0
+            ];
+            $DB->insert_record('liveclass_intervals', $interval);
+            $current_segment = 0;
+        } else {
+            $current_segment = max(0, $time - $open_interval->join_time);
+        }
+
+        // 3. Compute live duration.
+        $closed_duration = (int)$DB->get_field_sql(
+            'SELECT SUM(duration_seconds) FROM {liveclass_intervals} WHERE attendanceid = :attid AND leave_time > 0',
+            ['attid' => $attendance->id]
+        );
+        $total_seconds = $closed_duration + $current_segment;
+
+        $planned_duration = max(1, $liveclass->end_time - $liveclass->start_time);
+        if ($session->actual_start > 0 && $session->actual_end > $session->actual_start) {
+            $planned_duration = $session->actual_end - $session->actual_start;
+        }
+
+        $pct = min(100, (int)round(($total_seconds / $planned_duration) * 100));
+
+        $status = 'absent';
+        if ($pct >= $liveclass->min_attendance_pct) {
+            $status = 'present';
+        } else if ($pct >= 40) {
+            $status = 'late';
+        }
+
+        $attendance->total_duration_seconds = $total_seconds;
+        $attendance->attendance_percentage = $pct;
+        $attendance->status = $status;
+        $attendance->timemodified = $time;
+        $DB->update_record('liveclass_attendance', $attendance);
+
+        if ($liveclass->auto_sync_attendance && $status === 'present') {
+            self::sync_completion($liveclass, $userid);
+        }
+
+        return [
+            'status'             => 'active',
+            'duration_seconds'   => $total_seconds,
+            'attendance_percent' => $pct,
+            'presence_status'    => $status
+        ];
     }
 
     /**

@@ -141,4 +141,7 @@ $string['stop_recording'] = 'إيقاف التسجيل';
 $string['recording_in_progress'] = 'جاري التسجيل (REC)';
 $string['recording_started_msg'] = 'تم بدء تسجيل الجلسة من قِبل المحاضر';
 $string['recording_stopped_msg'] = 'تم إيقاف التسجيل بنجاح';
+$string['instructor'] = 'المحاضر';
+$string['classmates_in_room'] = 'المتواجدون في القاعة';
+$string['joined_classroom'] = 'متصل بالقاعة الافتراضية';
 

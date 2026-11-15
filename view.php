@@ -63,7 +63,8 @@ if (!$session) {
     ]);
 }
 
-if (!$session && $is_moderator) {
+if (!$session) {
+    // Auto-create or resume active session for scheduled lecture timeframe or moderator.
     $session = (object)[
         'liveclassid'        => $liveclass->id,
         'session_uuid'       => \core\uuid::generate(),
@@ -79,6 +80,14 @@ if (!$session && $is_moderator) {
 }
 
 $session_id = $session ? $session->id : 0;
+
+// Find instructor name for this course/activity to display to students.
+$instructor_name = '';
+$teachers = get_enrolled_users($context, 'mod/liveclass:moderate');
+if (!empty($teachers)) {
+    $t = reset($teachers);
+    $instructor_name = fullname($t);
+}
 
 // Generate LiveKit Access Token for this user.
 $identity = 'user_' . $USER->id;
@@ -101,6 +110,7 @@ $PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
     'token'            => $token,
     'roomName'         => $liveclass->room_name,
     'displayName'      => $displayname,
+    'instructorName'   => $instructor_name ?: get_string('instructor', 'mod_liveclass'),
     'isModerator'      => (bool)$is_moderator,
     'sessionId'        => (int)$session_id,
     'cmid'             => (int)$cm->id,
@@ -565,6 +575,46 @@ echo $OUTPUT->header();
                             document.getElementById('counter-inclass').textContent = d.in_class_count;
                             document.getElementById('counter-online').textContent = d.online_not_in_class_count;
                             document.getElementById('counter-absent').textContent = d.absent_count;
+
+                            if (d.students && d.students.length > 0) {
+                                d.students.forEach(function(st) {
+                                    var row = document.getElementById('student-row-' + st.id);
+                                    if (row) {
+                                        var statusTd = row.cells[2];
+                                        var progressTd = row.cells[3];
+                                        var actionsTd = row.cells[6];
+
+                                        if (st.status === 'in_class') {
+                                            statusTd.innerHTML = '<span class="badge bg-success-subtle text-success border border-success px-2 py-1">' +
+                                                '<span class="pulse-dot pulse-dot-green"></span> <?php echo get_string('status_in_class', 'mod_liveclass'); ?>' +
+                                                '</span>';
+                                            if (actionsTd) {
+                                                var nudgeBtn = actionsTd.querySelector('.btn-nudge');
+                                                if (nudgeBtn) nudgeBtn.style.display = 'none';
+                                            }
+                                        } else if (st.status === 'online_not_in_class') {
+                                            statusTd.innerHTML = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1 shadow-sm">' +
+                                                '<span class="pulse-dot pulse-dot-amber"></span> <?php echo get_string('status_online_moodle', 'mod_liveclass'); ?>' +
+                                                '</span>';
+                                        } else {
+                                            statusTd.innerHTML = '<span class="badge bg-light text-muted border px-2 py-1">' +
+                                                '<span class="pulse-dot pulse-dot-gray"></span> <?php echo get_string('status_absent', 'mod_liveclass'); ?>' +
+                                                '</span>';
+                                        }
+
+                                        if (progressTd) {
+                                            var bgClass = (st.percent >= <?php echo (int)$liveclass->min_attendance_pct; ?>) ? 'bg-success' : 'bg-info';
+                                            progressTd.innerHTML = '<div class="d-flex align-items-center">' +
+                                                '<div class="progress flex-grow-1 me-2" style="height: 8px;">' +
+                                                '<div class="progress-bar ' + bgClass + '" style="width: ' + Math.min(100, st.percent) + '%;"></div>' +
+                                                '</div>' +
+                                                '<span class="small fw-bold">' + st.percent + '%</span>' +
+                                                '</div>' +
+                                                '<div class="small text-muted">' + st.duration_mins + ' دقيقة</div>';
+                                        }
+                                    }
+                                });
+                            }
                         }
                     })
                     .catch(function(err) {
@@ -578,8 +628,8 @@ echo $OUTPUT->header();
                 });
             }
 
-            // Auto-refresh every 25 seconds for moderator
-            setInterval(refreshRoster, 25000);
+            // Auto-refresh every 12 seconds for moderator
+            setInterval(refreshRoster, 12000);
 
             // Nudge button handler
             document.addEventListener('click', function(e) {

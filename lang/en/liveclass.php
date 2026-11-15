@@ -141,4 +141,7 @@ $string['stop_recording'] = 'Stop Recording';
 $string['recording_in_progress'] = 'Recording (REC)';
 $string['recording_started_msg'] = 'Session recording has started';
 $string['recording_stopped_msg'] = 'Session recording has been stopped';
+$string['instructor'] = 'Instructor';
+$string['classmates_in_room'] = 'Classmates in Room';
+$string['joined_classroom'] = 'Connected to Classroom';
 
