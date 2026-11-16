@@ -30,7 +30,7 @@ require_once(__DIR__ . '/lib.php');
 header('Content-Type: application/json; charset=utf-8');
 
 $cmid = required_param('cmid', PARAM_INT);
-$action = required_param('action', PARAM_ALPHA);
+$action = required_param('action', PARAM_ALPHANUMEXT);
 require_sesskey();
 
 $cm = get_coursemodule_from_id('liveclass', $cmid, 0, false, MUST_EXIST);

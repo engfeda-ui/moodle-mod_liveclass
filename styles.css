@@ -288,6 +288,17 @@
     background: linear-gradient(180deg, #1e293b 0%, #2a151b 100%);
 }
 
+.gallery-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    border-radius: 8px;
+}
+
 .gallery-tile .tile-avatar {
     width: 64px;
     height: 64px;
@@ -296,6 +307,7 @@
     margin-top: 14px;
     border: 2px solid rgba(255, 255, 255, 0.25);
     background: #0f172a;
+    z-index: 1;
 }
 
 .gallery-tile .tile-name {
@@ -308,6 +320,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    z-index: 3;
 }
 
 .gallery-tile .tile-footer {
@@ -319,6 +332,7 @@
     align-items: center;
     font-size: 0.75rem;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 3;
 }
 
 .gallery-tile .hand-badge {
@@ -380,6 +394,32 @@
 .filmstrip-card.card-active {
     border-color: #22c55e;
     background: #0f231c;
+}
+
+.liveclass-toast {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1080;
+    padding: 10px 24px;
+    border-radius: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    font-size: 0.9rem;
+    font-weight: 600;
+    pointer-events: none;
+    animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -15px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
 }
 
 

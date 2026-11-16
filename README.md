@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.8-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.9-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,14 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.1.9] - 2026-11-16
+- **Eliminate Hardware Device Lockout & Stream Conflicts (`classroom.js`)**: Removed competing `initMediaStream()` call during classroom initialization. LiveKit SFU now serves as the single unified source for camera and microphone acquisition, eliminating `NotReadableError: Device in use` failures on mobile devices, laptops, and student tablets.
+- **Continuous 720p/540p High-Definition Video Streaming**: Upgraded room video presets to crisp HD (`h720` for instructor, `h540` for students with VP8 simulcast). Disabled aggressive `adaptiveStream` downscaling to prevent video streams from artificially dropping to low-resolution 180p thumbnails.
+- **Non-Destructive Incremental Stage DOM Architecture**: Replaced full-grid DOM wipes (`gridEl.html(gridHtml)`) with incremental updates. Video elements and active WebRTC peer tracks remain untouched in the DOM during the 10-second heartbeat cycle, completely eliminating video freezing, flickering, and stream detachment.
+- **Silenced HTTP Snapshot Flooding on Active WebRTC**: Automated suppression of legacy `startFrameBroadcast()` and `startFrameRefreshLoop()` HTTP polling while LiveKit WebRTC is connected. This removes ~70 concurrent HTTP POST/GET requests per second, eliminating server CPU spikes and network congestion.
+- **Robust Mute-All Protocol & Action Sanitization (`control.php` & `classroom.js`)**: Updated `control.php` parameter sanitization from `PARAM_ALPHA` to `PARAM_ALPHANUMEXT`, preventing underscore-separated commands (`lower_all_hands`, `start_recording`, `stop_recording`) from being stripped. Fixed LiveKit DataChannel `publishData()` packet kind argument and replaced blocking native browser alerts with non-intrusive floating toasts (`.liveclass-toast`).
+- **Interactive Camera and Mic Controls Synchronization**: Unified `#btn-toggle-cam` and `#btn-toggle-mic` handlers with LiveKit `setCameraEnabled` and `setMicrophoneEnabled` methods with automatic UI icon and state synchronization.
 
 ### [v1.1.8] - 2026-11-16
 - **Fix Missing `$liveclass` in Heartbeat (`heartbeat.php`)**: Resolved critical bug where `$liveclass` was undefined in `heartbeat.php`, causing `roster_manager::get_roster_data()` to query sessions with `liveclassid = null`. This improperly marked all 11 connected students as offline, causing their video tiles to disappear from the stage.

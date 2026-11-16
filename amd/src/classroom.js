@@ -87,6 +87,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                 <div class="w-100 h-100 d-flex justify-content-center align-items-center p-2 position-relative">
                     <!-- Instructor Stage Screen -->
                     <div class="instructor-stage-card shadow-lg d-flex flex-column justify-content-between p-3" style="width: 100%; max-width: 960px; height: 500px; position: relative;">
+                        <video id="livekit-speaker-video" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; border-radius: 12px; z-index: 1; display: none;" autoplay playsinline></video>
                         <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 z-2">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-danger rounded-pill px-3 py-1 animate-pulse">
@@ -103,7 +104,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
 
                         <!-- Live Instructor Frame Fallback for Students -->
                         <img id="speaker-instructor-frame" 
-                             src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=2&t=${Date.now()}" 
+                             src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${self.config.instructorId || 2}&t=${Date.now()}" 
                              class="w-100 h-100 position-absolute top-0 start-0" 
                              style="object-fit: cover; border-radius: 12px; z-index: 0;"
                              onerror="this.style.display='none'; $('#speaker-fallback-stage').show();"
@@ -274,7 +275,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             `);
 
             self.initLiveKit();
-            self.initMediaStream();
             self.startAttendanceTimer();
             self.bindToolbarControls();
             self.startPollWatcher();
@@ -283,21 +283,46 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             self.startFrameRefreshLoop();
         }
 
+        showToast(type, message) {
+            const stage = $('#liveclass-stage');
+            const bgClass = (type === 'success') ? 'bg-success text-white' : 'bg-warning text-dark';
+            const icon = (type === 'success') ? 'fa-check-circle' : 'fa-exclamation-circle';
+            const toast = $(`
+                <div class="liveclass-toast ${bgClass}">
+                    <i class="fa ${icon} me-1"></i> ${message}
+                </div>
+            `);
+            stage.append(toast);
+            setTimeout(() => {
+                toast.fadeOut(400, function() { $(this).remove(); });
+            }, 4000);
+        }
+
         async initLiveKit() {
             const self = this;
             const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
             if (!LK || !LK.Room) {
                 console.warn('[LiveClass] LiveKit SDK not available in AMD scope, falling back to HTTP frames.');
+                self.initMediaStream();
                 return;
             }
 
             try {
                 console.log('[LiveClass] Connecting to LiveKit SFU:', self.config.host, self.config.roomName);
+                const isMod = !!self.config.isModerator;
+                const targetPreset = isMod ?
+                    (LK.VideoPresets && LK.VideoPresets.h720 ? LK.VideoPresets.h720 : { resolution: { width: 1280, height: 720 }, encoding: { maxBitrate: 1700000, maxFramerate: 30 } }) :
+                    (LK.VideoPresets && LK.VideoPresets.h540 ? LK.VideoPresets.h540 : { resolution: { width: 960, height: 540 }, encoding: { maxBitrate: 800000, maxFramerate: 25 } });
+
                 const room = new LK.Room({
-                    adaptiveStream: true,
+                    adaptiveStream: false,
                     dynacast: true,
                     videoCaptureDefaults: {
-                        resolution: LK.VideoPresets ? LK.VideoPresets.h360.resolution : { width: 640, height: 360 }
+                        resolution: targetPreset.resolution
+                    },
+                    publishDefaults: {
+                        simulcast: true,
+                        videoCodec: 'vp8'
                     }
                 });
                 self.livekitRoom = room;
@@ -351,37 +376,55 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                 await room.connect(self.config.host, self.config.token);
                 console.log('[LiveClass] Successfully joined LiveKit WebRTC room:', room.name);
 
-                // Publish Local Media (Camera & Mic)
+                // Publish Local Media (Camera & Mic) via LiveKit
                 try {
-                    await room.localParticipant.enableCameraAndMicrophone();
-                    console.log('[LiveClass] Local camera & mic published to LiveKit SFU!');
-
-                    // Attach local video track to UI
-                    const camPub = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
-                    if (camPub && camPub.track) {
-                        const localTrack = camPub.track;
-                        const lv = document.getElementById('local-video');
-                        if (lv) localTrack.attach(lv);
-
-                        if (self.config.isModerator) {
-                            const giv = document.getElementById('gallery-instructor-video');
-                            if (giv) localTrack.attach(giv);
-                        } else {
-                            const gmv = document.querySelector('.gallery-my-video');
-                            if (gmv) localTrack.attach(gmv);
-                        }
-                    }
-                } catch (medErr) {
-                    console.warn('[LiveClass] Failed to enable camera+mic, trying mic only:', medErr);
-                    try {
-                        await room.localParticipant.setMicrophoneEnabled(true);
-                    } catch (micErr) {
-                        console.error('[LiveClass] Mic permission error:', micErr);
-                    }
+                    await room.localParticipant.setCameraEnabled(true, {
+                        resolution: targetPreset.resolution,
+                        facingMode: 'user'
+                    });
+                    console.log('[LiveClass] Camera published at', targetPreset.resolution.width, 'x', targetPreset.resolution.height);
+                } catch (camErr) {
+                    console.warn('[LiveClass] Camera permission denied or device busy:', camErr);
+                    self.isCamOff = true;
+                    $('#btn-toggle-cam').removeClass('btn-outline-light').addClass('btn-danger');
+                    $('#btn-toggle-cam').find('i').removeClass('fa-video-camera').addClass('fa-eye-slash');
                 }
 
+                try {
+                    await room.localParticipant.setMicrophoneEnabled(true);
+                    console.log('[LiveClass] Microphone published!');
+                } catch (micErr) {
+                    console.warn('[LiveClass] Microphone permission denied:', micErr);
+                    self.isMicMuted = true;
+                    $('#btn-toggle-mic').removeClass('btn-outline-light').addClass('btn-danger');
+                    $('#btn-toggle-mic').find('i').removeClass('fa-microphone').addClass('fa-microphone-slash');
+                }
+
+                // Attach local video track to UI
+                const camPub = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
+                if (camPub && camPub.track && camPub.track.mediaStreamTrack) {
+                    const localTrack = camPub.track;
+                    self.localStream = new MediaStream([localTrack.mediaStreamTrack]);
+
+                    const micPub = room.localParticipant.getTrackPublication(LK.Track.Source.Microphone);
+                    if (micPub && micPub.track && micPub.track.mediaStreamTrack) {
+                        self.localStream.addTrack(micPub.track.mediaStreamTrack);
+                    }
+
+                    const lv = document.getElementById('local-video');
+                    if (lv) localTrack.attach(lv);
+
+                    if (self.config.isModerator) {
+                        const giv = document.getElementById('gallery-instructor-video');
+                        if (giv) localTrack.attach(giv);
+                    } else {
+                        const gmv = document.querySelector('.gallery-my-video');
+                        if (gmv) localTrack.attach(gmv);
+                    }
+                }
             } catch (err) {
                 console.error('[LiveClass] LiveKit WebRTC connection error:', err);
+                self.initMediaStream();
             }
         }
 
@@ -397,36 +440,46 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             if (track.kind === 'video') {
                 if (isInstructor && !self.config.isModerator) {
                     // 1. Attach to Speaker View Main Stage for Students
+                    let spkVideo = document.getElementById('livekit-speaker-video');
                     const speakerCard = document.querySelector('.instructor-stage-card');
-                    if (speakerCard) {
-                        const existingSpeaker = document.getElementById('livekit-speaker-video');
-                        if (existingSpeaker) existingSpeaker.remove();
-
-                        const spkVideo = track.attach();
+                    if (!spkVideo && speakerCard) {
+                        spkVideo = document.createElement('video');
                         spkVideo.id = 'livekit-speaker-video';
                         spkVideo.className = 'w-100 h-100 position-absolute top-0 start-0';
                         spkVideo.style.objectFit = 'cover';
                         spkVideo.style.borderRadius = '12px';
                         spkVideo.style.zIndex = '1';
+                        spkVideo.autoplay = true;
+                        spkVideo.playsInline = true;
                         speakerCard.prepend(spkVideo);
-
+                    }
+                    if (spkVideo) {
+                        if (spkVideo.srcObject !== track.mediaStreamTrack) {
+                            track.attach(spkVideo);
+                        }
+                        spkVideo.style.display = 'block';
                         $('#speaker-fallback-stage').hide();
                         $('#speaker-instructor-frame').hide();
                     }
 
                     // 2. Attach to Gallery Grid Instructor Tile
+                    let instVideo = document.getElementById('livekit-inst-gallery-video');
                     const instTile = document.querySelector('.instructor-tile');
-                    if (instTile) {
-                        const existingInst = document.getElementById('livekit-inst-gallery-video');
-                        if (existingInst) existingInst.remove();
-
-                        const instVideo = track.attach();
+                    if (!instVideo && instTile) {
+                        instVideo = document.createElement('video');
                         instVideo.id = 'livekit-inst-gallery-video';
                         instVideo.className = 'w-100 h-100 position-absolute top-0 start-0';
                         instVideo.style.objectFit = 'cover';
-                        instVideo.style.zIndex = '1';
+                        instVideo.style.zIndex = '2';
+                        instVideo.autoplay = true;
+                        instVideo.playsInline = true;
                         instTile.prepend(instVideo);
-
+                    }
+                    if (instVideo) {
+                        if (instVideo.srcObject !== track.mediaStreamTrack) {
+                            track.attach(instVideo);
+                        }
+                        instVideo.style.display = 'block';
                         $('#fallback-instructor-avatar').hide();
                         $('#live-frame-instructor').hide();
                     }
@@ -434,16 +487,21 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     // Student Video Tile in Gallery Grid
                     const tileEl = document.getElementById(`gallery-tile-${userId}`);
                     if (tileEl) {
-                        const existingTileVideo = document.getElementById(`livekit-video-${userId}`);
-                        if (existingTileVideo) existingTileVideo.remove();
-
-                        const studentVideo = track.attach();
-                        studentVideo.id = `livekit-video-${userId}`;
-                        studentVideo.className = 'w-100 h-100 position-absolute top-0 start-0';
-                        studentVideo.style.objectFit = 'cover';
-                        studentVideo.style.zIndex = '1';
-                        tileEl.prepend(studentVideo);
-
+                        let studentVideo = document.getElementById(`livekit-video-${userId}`);
+                        if (!studentVideo) {
+                            studentVideo = document.createElement('video');
+                            studentVideo.id = `livekit-video-${userId}`;
+                            studentVideo.className = 'w-100 h-100 position-absolute top-0 start-0';
+                            studentVideo.style.objectFit = 'cover';
+                            studentVideo.style.zIndex = '2';
+                            studentVideo.autoplay = true;
+                            studentVideo.playsInline = true;
+                            tileEl.prepend(studentVideo);
+                        }
+                        if (studentVideo.srcObject !== track.mediaStreamTrack) {
+                            track.attach(studentVideo);
+                        }
+                        studentVideo.style.display = 'block';
                         $(`#fallback-avatar-${userId}`).hide();
                         $(`#live-frame-${userId}`).hide();
                     }
@@ -452,12 +510,16 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
 
             if (track.kind === 'audio') {
                 if (userId !== self.config.currentUserId) {
-                    const existingAudio = document.getElementById(`livekit-audio-${userId}`);
-                    if (existingAudio) existingAudio.remove();
-
-                    const audioEl = track.attach();
-                    audioEl.id = `livekit-audio-${userId}`;
-                    document.body.appendChild(audioEl);
+                    let audioEl = document.getElementById(`livekit-audio-${userId}`);
+                    if (!audioEl) {
+                        audioEl = document.createElement('audio');
+                        audioEl.id = `livekit-audio-${userId}`;
+                        audioEl.autoplay = true;
+                        document.body.appendChild(audioEl);
+                    }
+                    if (audioEl.srcObject !== track.mediaStreamTrack) {
+                        track.attach(audioEl);
+                    }
                 }
             }
         }
@@ -465,11 +527,13 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
         handleTrackUnsubscribed(track, participant) {
             const uidMatch = (participant.identity || '').match(/user_(\d+)/);
             const userId = uidMatch ? parseInt(uidMatch[1], 10) : 0;
+            const instructorId = this.config.instructorId || 2;
+            const isInstructor = (userId === instructorId || participant.name === this.config.instructorName);
 
             track.detach().forEach(el => el.remove());
 
             if (track.kind === 'video') {
-                if (userId === 2) {
+                if (isInstructor) {
                     $('#speaker-fallback-stage').show();
                     $('#fallback-instructor-avatar').show();
                 } else {
@@ -582,43 +646,47 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             const self = this;
             if (!self.participants || self.participants.length === 0) return;
 
-            // 1. Render Gallery Grid
+            // 1. Render / Update Gallery Grid
             const gridEl = $('#gallery-grid');
             if (gridEl.length) {
-                let gridHtml = '';
-
-                // Tile 0: Instructor Card
+                // Ensure Instructor Tile exists
+                let instTile = $('#gallery-instructor-tile');
                 const instructorTitle = self.config.isModerator ? 
                     `${self.config.displayName} (أنت - المدرب)` : 
                     (self.config.instructorName || 'المحاضر');
 
-                gridHtml += `
-                    <div class="gallery-tile instructor-tile shadow">
-                        <div class="position-absolute top-0 start-0 m-2 z-2">
-                            <span class="badge bg-danger rounded-pill px-2 py-1"><i class="fa fa-shield"></i> المدرب</span>
-                        </div>
-                        ${self.config.isModerator ? `
-                            <video id="gallery-instructor-video" class="w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0; z-index:1;" autoplay playsinline muted></video>
-                        ` : `
-                            <img id="live-frame-instructor" 
-                                 src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${self.config.instructorId || 2}&t=${Date.now()}" 
-                                 class="w-100 h-100 position-absolute top-0 start-0" 
-                                 style="object-fit: cover; z-index:0;"
-                                 onerror="this.style.display='none'; $('#fallback-instructor-avatar').show();"
-                                 onload="if(this.naturalWidth > 60){ this.style.display='block'; $('#fallback-instructor-avatar').hide(); }">
-                            <div id="fallback-instructor-avatar" class="d-flex flex-column align-items-center justify-content-center my-auto z-1">
-                                <div class="badge bg-danger bg-opacity-25 text-danger rounded-circle p-3 mb-2">
-                                    <i class="fa fa-graduation-cap fa-2x"></i>
-                                </div>
+                if (!instTile.length) {
+                    const instHtml = `
+                        <div class="gallery-tile instructor-tile shadow position-relative" id="gallery-instructor-tile">
+                            <div class="position-absolute top-0 start-0 m-2 z-2">
+                                <span class="badge bg-danger rounded-pill px-2 py-1"><i class="fa fa-shield"></i> المدرب</span>
                             </div>
-                        `}
-                        <div class="tile-name mt-auto z-2">${instructorTitle}</div>
-                        <div class="tile-footer z-2">
-                            <span class="text-success small"><i class="fa fa-circle"></i> بث مباشر</span>
-                            <span class="text-white small"><i class="fa fa-microphone"></i></span>
+                            ${self.config.isModerator ? `
+                                <video id="gallery-instructor-video" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; z-index:2;" autoplay playsinline muted></video>
+                            ` : `
+                                <video id="livekit-inst-gallery-video" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; z-index:2; display:none;" autoplay playsinline></video>
+                                <div id="fallback-instructor-avatar" class="d-flex flex-column align-items-center justify-content-center my-auto z-1">
+                                    <div class="badge bg-danger bg-opacity-25 text-danger rounded-circle p-3 mb-2">
+                                        <i class="fa fa-graduation-cap fa-2x"></i>
+                                    </div>
+                                </div>
+                            `}
+                            <div class="tile-name mt-auto z-3">${instructorTitle}</div>
+                            <div class="tile-footer z-3">
+                                <span class="text-success small"><i class="fa fa-circle"></i> بث مباشر</span>
+                                <span class="text-white small"><i class="fa fa-microphone"></i></span>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                    gridEl.prepend(instHtml);
+                    if (self.config.isModerator && self.localStream) {
+                        const giv = document.getElementById('gallery-instructor-video');
+                        if (giv && giv.srcObject !== self.localStream) {
+                            giv.srcObject = self.localStream;
+                            giv.play().catch(() => {});
+                        }
+                    }
+                }
 
                 // Gather user IDs actively connected via LiveKit room
                 const livekitConnectedUids = new Set();
@@ -629,84 +697,90 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     });
                 }
 
-                // Student Tiles: Render connected students on the live stage (via Heartbeat or LiveKit room)
+                // Connected students (in class or in LiveKit)
                 const connectedStudents = (self.participants || []).filter(st => {
                     if (st.id === self.config.currentUserId) return false;
                     return st.status === 'in_class' || livekitConnectedUids.has(st.id);
                 });
 
                 if (connectedStudents.length === 0) {
-                    gridHtml += `
-                        <div class="gallery-empty-notice d-flex flex-column align-items-center justify-content-center p-4 text-center my-auto" style="grid-column: 2 / -1; min-height: 220px;">
-                            <div class="badge bg-secondary bg-opacity-25 text-white-50 rounded-circle p-3 mb-2">
-                                <i class="fa fa-users fa-2x"></i>
+                    // Remove any old student tiles
+                    gridEl.find('.student-tile').remove();
+                    if (!$('#gallery-empty-notice').length) {
+                        gridEl.append(`
+                            <div id="gallery-empty-notice" class="gallery-empty-notice d-flex flex-column align-items-center justify-content-center p-4 text-center my-auto" style="grid-column: 2 / -1; min-height: 220px;">
+                                <div class="badge bg-secondary bg-opacity-25 text-white-50 rounded-circle p-3 mb-2">
+                                    <i class="fa fa-users fa-2x"></i>
+                                </div>
+                                <div class="text-white-50 small">لا يوجد متدربون متصلون حالياً في القاعة الافتراضية</div>
+                                <div class="text-secondary small mt-1" style="font-size:0.75rem;">(يظهر المتدربون هنا تلقائياً فور انضمامهم للبث)</div>
                             </div>
-                            <div class="text-white-50 small">لا يوجد متدربون متصلون حالياً في القاعة الافتراضية</div>
-                            <div class="text-secondary small mt-1" style="font-size:0.75rem;">(يظهر المتدربون هنا تلقائياً فور انضمامهم للبث)</div>
-                        </div>
-                    `;
+                        `);
+                    }
                 } else {
-                    connectedStudents.forEach(st => {
-                        const statusBadge = '<span class="badge bg-success-subtle text-success border border-success"><span class="pulse-dot pulse-dot-green"></span> متصل</span>';
+                    $('#gallery-empty-notice').remove();
+                    const activeUids = new Set(connectedStudents.map(s => s.id));
 
-                        gridHtml += `
-                            <div class="gallery-tile tile-active shadow" id="gallery-tile-${st.id}">
-                                ${st.handRaised ? '<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>' : ''}
-                                
-                                <img id="live-frame-${st.id}" 
-                                     src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${st.id}&t=${Date.now()}" 
-                                     class="w-100 h-100 tile-live-frame" 
-                                     style="object-fit: cover; position: absolute; top:0; left:0; z-index:0;"
-                                     onerror="this.style.display='none'; const fb = document.getElementById('fallback-avatar-${st.id}'); if(fb) fb.style.display='block';"
-                                     onload="if(this.naturalWidth > 60){ this.style.display='block'; const fb = document.getElementById('fallback-avatar-${st.id}'); if(fb) fb.style.display='none'; }">
-                                <img id="fallback-avatar-${st.id}" 
-                                     src="${st.avatar}" 
-                                     class="tile-avatar shadow-sm" 
-                                     style="display:none;"
-                                     alt="${st.fullname}" 
-                                     onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
-                                
-                                <div class="tile-name mt-auto z-2" title="${st.fullname}">${st.fullname}</div>
-                                
-                                <div class="tile-footer z-2">
-                                    <div>${statusBadge}</div>
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="text-muted small"><i class="fa fa-microphone text-success"></i></span>
-                                        <span class="badge bg-secondary" style="font-size: 0.65rem;">${st.percent}%</span>
+                    // Prune stale student tiles without touching active tiles
+                    gridEl.find('.student-tile').each(function() {
+                        const uid = parseInt($(this).data('userid'), 10);
+                        if (!activeUids.has(uid)) {
+                            $(this).remove();
+                        }
+                    });
+
+                    // Add or update active student tiles incrementally
+                    connectedStudents.forEach(st => {
+                        const existingTile = $(`#gallery-tile-${st.id}`);
+                        if (existingTile.length) {
+                            // Incremental Update: DO NOT touch the playing <video> element!
+                            existingTile.find('.badge-percent').text(`${st.percent}%`);
+                            const handEl = existingTile.find('.hand-badge');
+                            if (st.handRaised && !handEl.length) {
+                                existingTile.prepend('<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>');
+                            } else if (!st.handRaised && handEl.length) {
+                                handEl.remove();
+                            }
+                        } else {
+                            // New student joined: append tile
+                            const newTileHtml = `
+                                <div class="gallery-tile student-tile tile-active shadow position-relative" id="gallery-tile-${st.id}" data-userid="${st.id}">
+                                    ${st.handRaised ? '<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>' : ''}
+                                    <video id="livekit-video-${st.id}" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; z-index: 2; display: none;" autoplay playsinline></video>
+                                    <img id="fallback-avatar-${st.id}" src="${st.avatar}" class="tile-avatar shadow-sm" alt="${st.fullname}" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
+                                    <div class="tile-name mt-auto z-3" title="${st.fullname}">${st.fullname}</div>
+                                    <div class="tile-footer z-3">
+                                        <div><span class="badge bg-success-subtle text-success border border-success"><span class="pulse-dot pulse-dot-green"></span> متصل</span></div>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span class="text-muted small"><i class="fa fa-microphone text-success"></i></span>
+                                            <span class="badge bg-secondary badge-percent" style="font-size: 0.65rem;">${st.percent}%</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        `;
-                    });
-                }
+                            `;
+                            gridEl.append(newTileHtml);
 
-                gridEl.html(gridHtml);
-
-                // Bind streams for active video tiles
-                if (self.localStream) {
-                    if (self.config.isModerator) {
-                        const giv = document.getElementById('gallery-instructor-video');
-                        if (giv) giv.srcObject = self.localStream;
-                    } else {
-                        const gmv = document.querySelector('.gallery-my-video');
-                        if (gmv) gmv.srcObject = self.localStream;
-                    }
-                }
-
-                // Re-bind subscribed LiveKit WebRTC tracks
-                if (self.livekitRoom && self.livekitRoom.remoteParticipants) {
-                    self.livekitRoom.remoteParticipants.forEach(p => {
-                        const pubs = (typeof p.getTracks === 'function') ? p.getTracks() : (p.tracks ? Array.from(p.tracks.values()) : []);
-                        pubs.forEach(pub => {
-                            if (pub && pub.isSubscribed && pub.track) {
-                                self.handleTrackSubscribed(pub.track, pub, p);
+                            // Check if this student already published a track in LiveKit
+                            if (self.livekitRoom && self.livekitRoom.remoteParticipants) {
+                                const rp = Array.from(self.livekitRoom.remoteParticipants.values()).find(p => {
+                                    const m = (p.identity || '').match(/user_(\d+)/);
+                                    return m && parseInt(m[1], 10) === st.id;
+                                });
+                                if (rp) {
+                                    const pubs = (typeof rp.getTracks === 'function') ? rp.getTracks() : (rp.tracks ? Array.from(rp.tracks.values()) : []);
+                                    pubs.forEach(pub => {
+                                        if (pub && pub.isSubscribed && pub.track && pub.track.kind === 'video') {
+                                            self.handleTrackSubscribed(pub.track, pub, rp);
+                                        }
+                                    });
+                                }
                             }
-                        });
+                        }
                     });
                 }
             }
 
-            // 2. Render Speaker View Filmstrip
+            // 2. Render Speaker View Filmstrip Incrementally
             const filmstripEl = $('#speaker-filmstrip');
             if (filmstripEl.length) {
                 const livekitConnectedUids = new Set();
@@ -747,6 +821,8 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             const ctx = canvas.getContext('2d');
 
             this.frameBroadcastInterval = setInterval(() => {
+                // Completely silence HTTP frame polling when LiveKit WebRTC is active
+                if (self.livekitRoom && self.livekitRoom.state === 'connected') return;
                 if (!self.localStream || self.isCamOff) return;
 
                 const videoEl = self.captureVideo || document.getElementById('local-video') || document.getElementById('gallery-instructor-video');
@@ -775,13 +851,14 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
         startFrameRefreshLoop() {
             const self = this;
             this.frameRefreshInterval = setInterval(() => {
+                // Completely silence HTTP frame polling when LiveKit WebRTC is active
+                if (self.livekitRoom && self.livekitRoom.state === 'connected') return;
                 if (!self.participants || self.participants.length === 0) return;
                 const now = Date.now();
 
                 self.participants.forEach(st => {
                     if (st.id === self.config.currentUserId) return;
                     if (st.status === 'in_class') {
-                        // Only refresh snapshot if WebRTC video is NOT playing
                         const lkVideo = document.getElementById(`livekit-video-${st.id}`);
                         if (!lkVideo) {
                             const img = document.getElementById(`live-frame-${st.id}`);
@@ -801,7 +878,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     }
                 });
 
-                // For students: refresh instructor frame in speaker and gallery modes if WebRTC video not playing
                 if (!self.config.isModerator) {
                     const lkSpkVideo = document.getElementById('livekit-speaker-video');
                     if (!lkSpkVideo) {
@@ -961,40 +1037,67 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                 $('#hand-raise-alert').addClass('d-none');
             });
 
-            $('#btn-toggle-mic').on('click', function() {
+            $('#btn-toggle-mic').on('click', async function() {
                 if (self.livekitRoom && self.livekitRoom.localParticipant) {
                     const isMuted = self.isMicMuted;
-                    self.livekitRoom.localParticipant.setMicrophoneEnabled(isMuted);
-                    self.isMicMuted = !isMuted;
-                    $(this).toggleClass('btn-outline-light btn-danger');
-                    $(this).find('i').toggleClass('fa-microphone fa-microphone-slash');
-                    self.logEvent(self.isMicMuted ? 'mic_muted' : 'mic_unmuted', 'Microphone state toggled');
+                    try {
+                        await self.livekitRoom.localParticipant.setMicrophoneEnabled(isMuted);
+                        self.isMicMuted = !isMuted;
+                        $(this).toggleClass('btn-outline-light btn-danger', self.isMicMuted);
+                        $(this).find('i').toggleClass('fa-microphone fa-microphone-slash');
+                        self.logEvent(self.isMicMuted ? 'mic_muted' : 'mic_unmuted', 'Microphone state toggled');
+                    } catch (e) {
+                        console.warn('[LiveClass] Toggle mic error:', e);
+                    }
                 } else if (self.localStream) {
                     const audioTrack = self.localStream.getAudioTracks()[0];
                     if (audioTrack) {
                         self.isMicMuted = !self.isMicMuted;
                         audioTrack.enabled = !self.isMicMuted;
-                        $(this).toggleClass('btn-outline-light btn-danger');
+                        $(this).toggleClass('btn-outline-light btn-danger', self.isMicMuted);
                         $(this).find('i').toggleClass('fa-microphone fa-microphone-slash');
                         self.logEvent(self.isMicMuted ? 'mic_muted' : 'mic_unmuted', 'Microphone state toggled');
                     }
                 }
             });
 
-            $('#btn-toggle-cam').on('click', function() {
+            $('#btn-toggle-cam').on('click', async function() {
+                const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
                 if (self.livekitRoom && self.livekitRoom.localParticipant) {
                     const isOff = self.isCamOff;
-                    self.livekitRoom.localParticipant.setCameraEnabled(isOff);
-                    self.isCamOff = !isOff;
-                    $(this).toggleClass('btn-outline-light btn-danger');
-                    $(this).find('i').toggleClass('fa-video-camera fa-eye-slash');
-                    self.logEvent(self.isCamOff ? 'cam_disabled' : 'cam_enabled', 'Camera state toggled');
+                    try {
+                        const isMod = !!self.config.isModerator;
+                        const targetPreset = isMod ?
+                            (LK.VideoPresets && LK.VideoPresets.h720 ? LK.VideoPresets.h720 : { resolution: { width: 1280, height: 720 } }) :
+                            (LK.VideoPresets && LK.VideoPresets.h540 ? LK.VideoPresets.h540 : { resolution: { width: 960, height: 540 } });
+
+                        await self.livekitRoom.localParticipant.setCameraEnabled(isOff, {
+                            resolution: targetPreset.resolution,
+                            facingMode: 'user'
+                        });
+                        self.isCamOff = !isOff;
+                        $(this).toggleClass('btn-outline-light btn-danger', self.isCamOff);
+                        $(this).find('i').toggleClass('fa-video-camera fa-eye-slash');
+                        self.logEvent(self.isCamOff ? 'cam_disabled' : 'cam_enabled', 'Camera state toggled');
+
+                        const camPub = self.livekitRoom.localParticipant.getTrackPublication(LK.Track.Source.Camera);
+                        if (camPub && camPub.track && !self.isCamOff) {
+                            const lv = document.getElementById('local-video');
+                            if (lv) camPub.track.attach(lv);
+                            if (self.config.isModerator) {
+                                const giv = document.getElementById('gallery-instructor-video');
+                                if (giv) camPub.track.attach(giv);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[LiveClass] Toggle cam error:', e);
+                    }
                 } else if (self.localStream) {
                     const videoTrack = self.localStream.getVideoTracks()[0];
                     if (videoTrack) {
                         self.isCamOff = !self.isCamOff;
                         videoTrack.enabled = !self.isCamOff;
-                        $(this).toggleClass('btn-outline-light btn-danger');
+                        $(this).toggleClass('btn-outline-light btn-danger', self.isCamOff);
                         $(this).find('i').toggleClass('fa-video-camera fa-eye-slash');
                         self.logEvent(self.isCamOff ? 'cam_disabled' : 'cam_enabled', 'Camera state toggled');
                     }
@@ -1051,12 +1154,14 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
 
             // Moderator Command: Mute all participants
             $('#btn-stage-mute-all').on('click', function() {
+                const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
                 if (confirm('هل أنت متأكد من كتم صوت الميكروفون لجميع المتدربين؟')) {
                     // 1. Instant LiveKit WebRTC broadcast
                     if (self.livekitRoom && self.livekitRoom.localParticipant) {
                         try {
                             const payload = new TextEncoder().encode(JSON.stringify({ type: 'mute_all' }));
-                            self.livekitRoom.localParticipant.publishData(payload, { reliable: true });
+                            const kind = (LK.DataPacket_Kind && LK.DataPacket_Kind.RELIABLE !== undefined) ? LK.DataPacket_Kind.RELIABLE : 0;
+                            self.livekitRoom.localParticipant.publishData(payload, kind);
                         } catch (e) {
                             console.warn('[LiveClass] WebRTC DataChannel broadcast error:', e);
                         }
@@ -1065,9 +1170,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=muteall&sesskey=' + self.config.sesskey)
                         .then(r => r.json())
                         .then(res => {
-                            if (res.status === 'success') {
-                                alert(res.message);
-                            }
+                            self.showToast('success', res.message || 'تم كتم صوت الميكروفون لجميع المتدربين بنجاح');
                         })
                         .catch(err => {
                             console.error('[LiveClass] Mute all error:', err);
