@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.7-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.1.8-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -48,7 +48,12 @@ The plugin introduces 7 specialized tables:
 
 ## 📋 Changelog
 
-### [v1.1.7] - 2026-11-15
+### [v1.1.8] - 2026-11-16
+- **Fix Missing `$liveclass` in Heartbeat (`heartbeat.php`)**: Resolved critical bug where `$liveclass` was undefined in `heartbeat.php`, causing `roster_manager::get_roster_data()` to query sessions with `liveclassid = null`. This improperly marked all 11 connected students as offline, causing their video tiles to disappear from the stage.
+- **Fix Moderator Mute All Protocol (`control.php` & `classroom.js`)**: Corrected database column mapping in `control.php` to use `details` and `timestamp` via `log_presence_event()`, added latest session fallback, and integrated instant WebRTC DataChannel broadcast (`publishData({type: 'mute_all'})`) alongside HTTP heartbeat polling fallback.
+- **Fix Participant Track Publications Loop (`classroom.js`)**: Replaced non-existent `p.trackPublications.forEach()` with `(p.getTracks ? p.getTracks() : Array.from(p.tracks.values())).forEach()`, eliminating JavaScript `TypeError` that crashed stage rendering and prevented remote video re-binding.
+- **Hybrid Stage Connection Detection**: Enhanced `connectedStudents` filter in Gallery Grid to recognize attendees through either HTTP heartbeat presence intervals or active WebRTC connections in `livekitRoom.remoteParticipants`.
+- **Dynamic Instructor Identity Mapping**: Added `instructorId` parameter from `view.php` to AMD classroom configuration, eliminating hardcoded user ID 2 checks and ensuring fallback frames and speaker stages attach accurately for all instructors.
 - **Production Asset Compilation (`classroom.min.js`)**: Compiled updated AMD source using Terser (`amd/build/classroom.min.js`, 43KB) ensuring production Moodle clients load the latest real-time presence logic.
 - **Historical Focus Audit Query Fallback (`focus_logs.php`)**: Added latest session resolution fallback for concluded/completed classes so instructors can audit student focus loss and tab-switches both during and after sessions.
 - **End-to-End WebSocket Handshake Audit**: Verified LiveKit WebRTC handshake (`/rtc`), Nginx reverse proxy headers, and authenticated token exchange across all operational states.

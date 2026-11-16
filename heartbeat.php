@@ -45,6 +45,8 @@ list($course, $cm) = get_course_and_cm_from_cmid($cmid, 'liveclass');
 $context = context_module::instance($cm->id);
 require_capability('mod/liveclass:view', $context);
 
+$liveclass = $DB->get_record('liveclass', ['id' => $cm->instance], '*', MUST_EXIST);
+
 // Verify session belongs to this liveclass instance.
 $session = $DB->get_record('liveclass_sessions', ['id' => $sessionid], '*', MUST_EXIST);
 if ((int)$session->liveclassid !== (int)$cm->instance) {

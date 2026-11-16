@@ -42,20 +42,21 @@ $context = context_module::instance($cm->id);
 require_capability('mod/liveclass:moderate', $context);
 
 $session = $DB->get_record('liveclass_sessions', ['liveclassid' => $liveclass->id, 'status' => 'active']);
+if (!$session) {
+    $session = $DB->get_record_sql("SELECT * FROM {liveclass_sessions} WHERE liveclassid = ? ORDER BY id DESC LIMIT 1", [$liveclass->id]);
+}
 $session_id = $session ? (int)$session->id : 0;
 
 switch ($action) {
     case 'muteall':
         // Log action in presence audit.
         if ($session_id > 0) {
-            $log = (object)[
-                'sessionid'    => $session_id,
-                'userid'       => $USER->id,
-                'event_type'   => 'mute_all',
-                'event_data'   => json_encode(['moderator' => fullname($USER)]),
-                'timecreated'  => time()
-            ];
-            $DB->insert_record('liveclass_presence_logs', $log);
+            \mod_liveclass\attendance_engine::log_presence_event(
+                $session_id,
+                (int)$USER->id,
+                'mute_all',
+                json_encode(['moderator' => fullname($USER)])
+            );
         }
 
         echo json_encode([
@@ -66,14 +67,12 @@ switch ($action) {
 
     case 'start_recording':
         if ($session_id > 0) {
-            $log = (object)[
-                'sessionid'    => $session_id,
-                'userid'       => $USER->id,
-                'event_type'   => 'recording_started',
-                'event_data'   => json_encode(['moderator' => fullname($USER), 'time' => time()]),
-                'timecreated'  => time()
-            ];
-            $DB->insert_record('liveclass_presence_logs', $log);
+            \mod_liveclass\attendance_engine::log_presence_event(
+                $session_id,
+                (int)$USER->id,
+                'recording_started',
+                json_encode(['moderator' => fullname($USER), 'time' => time()])
+            );
         }
 
         echo json_encode([
@@ -84,14 +83,12 @@ switch ($action) {
 
     case 'stop_recording':
         if ($session_id > 0) {
-            $log = (object)[
-                'sessionid'    => $session_id,
-                'userid'       => $USER->id,
-                'event_type'   => 'recording_stopped',
-                'event_data'   => json_encode(['moderator' => fullname($USER), 'time' => time()]),
-                'timecreated'  => time()
-            ];
-            $DB->insert_record('liveclass_presence_logs', $log);
+            \mod_liveclass\attendance_engine::log_presence_event(
+                $session_id,
+                (int)$USER->id,
+                'recording_stopped',
+                json_encode(['moderator' => fullname($USER), 'time' => time()])
+            );
         }
 
         echo json_encode([
@@ -130,14 +127,12 @@ switch ($action) {
             $session->actual_end = time();
             $DB->update_record('liveclass_sessions', $session);
 
-            $log = (object)[
-                'sessionid'    => $session_id,
-                'userid'       => $USER->id,
-                'event_type'   => 'session_ended',
-                'event_data'   => json_encode(['moderator' => fullname($USER), 'time' => time()]),
-                'timecreated'  => time()
-            ];
-            $DB->insert_record('liveclass_presence_logs', $log);
+            \mod_liveclass\attendance_engine::log_presence_event(
+                $session_id,
+                (int)$USER->id,
+                'session_ended',
+                json_encode(['moderator' => fullname($USER), 'time' => time()])
+            );
         }
         echo json_encode(['status' => 'success', 'message' => 'Session ended']);
         break;

@@ -322,6 +322,31 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     self.handleTrackMuteState(participant, false);
                 });
 
+                // Real-time DataChannel Messages (Instant Mute All, Chimes, Polls)
+                room.on(LK.RoomEvent.DataReceived, (payload, participant) => {
+                    try {
+                        const str = new TextDecoder().decode(payload);
+                        const data = JSON.parse(str);
+                        if (data.type === 'mute_all' && !self.config.isModerator) {
+                            self.muteLocalMic();
+                            $('#mute-notice').removeClass('d-none');
+                            setTimeout(() => { $('#mute-notice').addClass('d-none'); }, 5000);
+                        }
+                    } catch (e) {
+                        console.warn('[LiveClass] DataReceived parse error:', e);
+                    }
+                });
+
+                // Participant Connect / Disconnect events for instantaneous stage updating
+                room.on(LK.RoomEvent.ParticipantConnected, (participant) => {
+                    console.log('[LiveClass] Participant connected to room:', participant.identity);
+                    self.renderParticipants();
+                });
+                room.on(LK.RoomEvent.ParticipantDisconnected, (participant) => {
+                    console.log('[LiveClass] Participant disconnected from room:', participant.identity);
+                    self.renderParticipants();
+                });
+
                 // Connect to LiveKit Room over WSS (port 443 via Nginx /rtc)
                 await room.connect(self.config.host, self.config.token);
                 console.log('[LiveClass] Successfully joined LiveKit WebRTC room:', room.name);
@@ -366,9 +391,10 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             const userId = uidMatch ? parseInt(uidMatch[1], 10) : 0;
             if (!userId) return;
 
-            if (track.kind === 'video') {
-                const isInstructor = (userId === 2 || participant.name === self.config.instructorName);
+            const instructorId = self.config.instructorId || 2;
+            const isInstructor = (userId === instructorId || participant.name === self.config.instructorName);
 
+            if (track.kind === 'video') {
                 if (isInstructor && !self.config.isModerator) {
                     // 1. Attach to Speaker View Main Stage for Students
                     const speakerCard = document.querySelector('.instructor-stage-card');
@@ -425,12 +451,14 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             }
 
             if (track.kind === 'audio') {
-                const existingAudio = document.getElementById(`livekit-audio-${userId}`);
-                if (existingAudio) existingAudio.remove();
+                if (userId !== self.config.currentUserId) {
+                    const existingAudio = document.getElementById(`livekit-audio-${userId}`);
+                    if (existingAudio) existingAudio.remove();
 
-                const audioEl = track.attach();
-                audioEl.id = `livekit-audio-${userId}`;
-                document.body.appendChild(audioEl);
+                    const audioEl = track.attach();
+                    audioEl.id = `livekit-audio-${userId}`;
+                    document.body.appendChild(audioEl);
+                }
             }
         }
 
@@ -573,7 +601,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                             <video id="gallery-instructor-video" class="w-100 h-100" style="object-fit: cover; position: absolute; top:0; left:0; z-index:1;" autoplay playsinline muted></video>
                         ` : `
                             <img id="live-frame-instructor" 
-                                 src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=2&t=${Date.now()}" 
+                                 src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${self.config.instructorId || 2}&t=${Date.now()}" 
                                  class="w-100 h-100 position-absolute top-0 start-0" 
                                  style="object-fit: cover; z-index:0;"
                                  onerror="this.style.display='none'; $('#fallback-instructor-avatar').show();"
@@ -592,8 +620,20 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     </div>
                 `;
 
-                // Student Tiles: Render ONLY connected students on the live stage!
-                const connectedStudents = self.participants.filter(st => st.status === 'in_class' && st.id !== self.config.currentUserId);
+                // Gather user IDs actively connected via LiveKit room
+                const livekitConnectedUids = new Set();
+                if (self.livekitRoom && self.livekitRoom.remoteParticipants) {
+                    self.livekitRoom.remoteParticipants.forEach(p => {
+                        const m = (p.identity || '').match(/user_(\d+)/);
+                        if (m) livekitConnectedUids.add(parseInt(m[1], 10));
+                    });
+                }
+
+                // Student Tiles: Render connected students on the live stage (via Heartbeat or LiveKit room)
+                const connectedStudents = (self.participants || []).filter(st => {
+                    if (st.id === self.config.currentUserId) return false;
+                    return st.status === 'in_class' || livekitConnectedUids.has(st.id);
+                });
 
                 if (connectedStudents.length === 0) {
                     gridHtml += `
@@ -656,8 +696,9 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                 // Re-bind subscribed LiveKit WebRTC tracks
                 if (self.livekitRoom && self.livekitRoom.remoteParticipants) {
                     self.livekitRoom.remoteParticipants.forEach(p => {
-                        p.trackPublications.forEach(pub => {
-                            if (pub.isSubscribed && pub.track) {
+                        const pubs = (typeof p.getTracks === 'function') ? p.getTracks() : (p.tracks ? Array.from(p.tracks.values()) : []);
+                        pubs.forEach(pub => {
+                            if (pub && pub.isSubscribed && pub.track) {
                                 self.handleTrackSubscribed(pub.track, pub, p);
                             }
                         });
@@ -668,7 +709,16 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             // 2. Render Speaker View Filmstrip
             const filmstripEl = $('#speaker-filmstrip');
             if (filmstripEl.length) {
-                const connectedStudents = self.participants.filter(st => st.status === 'in_class');
+                const livekitConnectedUids = new Set();
+                if (self.livekitRoom && self.livekitRoom.remoteParticipants) {
+                    self.livekitRoom.remoteParticipants.forEach(p => {
+                        const m = (p.identity || '').match(/user_(\d+)/);
+                        if (m) livekitConnectedUids.add(parseInt(m[1], 10));
+                    });
+                }
+                const connectedStudents = (self.participants || []).filter(st => {
+                    return st.status === 'in_class' || livekitConnectedUids.has(st.id);
+                });
                 if (connectedStudents.length > 0) {
                     filmstripEl.removeClass('d-none');
                     let filmstripHtml = '';
@@ -869,18 +919,23 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
         }
 
         muteLocalMic() {
+            this.isMicMuted = true;
             if (this.livekitRoom && this.livekitRoom.localParticipant) {
-                this.livekitRoom.localParticipant.setMicrophoneEnabled(false);
+                try {
+                    this.livekitRoom.localParticipant.setMicrophoneEnabled(false);
+                } catch (e) {
+                    console.warn('[LiveClass] LiveKit mic disable error:', e);
+                }
             }
             if (this.localStream) {
                 const audioTrack = this.localStream.getAudioTracks()[0];
                 if (audioTrack) {
-                    this.isMicMuted = true;
                     audioTrack.enabled = false;
-                    $('#btn-toggle-mic').removeClass('btn-outline-light').addClass('btn-danger');
-                    $('#btn-toggle-mic').find('i').removeClass('fa-microphone').addClass('fa-microphone-slash');
                 }
             }
+            $('#btn-toggle-mic').removeClass('btn-outline-light').addClass('btn-danger');
+            $('#btn-toggle-mic').find('i').removeClass('fa-microphone').addClass('fa-microphone-slash');
+            this.logEvent('mic_muted', 'Microphone muted by moderator');
         }
 
         sendLeaveBeacon() {
@@ -997,12 +1052,25 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             // Moderator Command: Mute all participants
             $('#btn-stage-mute-all').on('click', function() {
                 if (confirm('هل أنت متأكد من كتم صوت الميكروفون لجميع المتدربين؟')) {
+                    // 1. Instant LiveKit WebRTC broadcast
+                    if (self.livekitRoom && self.livekitRoom.localParticipant) {
+                        try {
+                            const payload = new TextEncoder().encode(JSON.stringify({ type: 'mute_all' }));
+                            self.livekitRoom.localParticipant.publishData(payload, { reliable: true });
+                        } catch (e) {
+                            console.warn('[LiveClass] WebRTC DataChannel broadcast error:', e);
+                        }
+                    }
+                    // 2. Persist in presence logs via control.php for HTTP polling fallback
                     fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=muteall&sesskey=' + self.config.sesskey)
                         .then(r => r.json())
                         .then(res => {
                             if (res.status === 'success') {
                                 alert(res.message);
                             }
+                        })
+                        .catch(err => {
+                            console.error('[LiveClass] Mute all error:', err);
                         });
                 }
             });

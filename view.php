@@ -146,13 +146,18 @@ if (!$is_moderator && ($is_session_expired || $is_explicitly_closed || (!$sessio
     echo $OUTPUT->header();
 
     // Student personal attendance record.
-    $user_att = $DB->get_record('liveclass_attendance', [
-        'liveclassid' => $liveclass->id,
-        'userid'      => $USER->id
-    ]);
+    $user_att = $DB->get_record_sql(
+        "SELECT a.* 
+           FROM {liveclass_attendance} a
+           JOIN {liveclass_sessions} s ON s.id = a.sessionid
+          WHERE s.liveclassid = ? AND a.userid = ?
+          ORDER BY a.id DESC",
+        [$liveclass->id, $USER->id],
+        IGNORE_MULTIPLE
+    );
 
     $att_mins = $user_att ? round($user_att->total_duration_seconds / 60) : 0;
-    $att_pct = $user_att ? (int)$user_att->percent : 0;
+    $att_pct = $user_att ? (int)$user_att->attendance_percentage : 0;
     $req_pct = (int)$liveclass->min_attendance_pct;
     $is_met = ($att_pct >= $req_pct);
 
@@ -251,12 +256,15 @@ $session_id = $session ? $session->id : 0;
 // Find instructor name for this course/activity to display to students.
 if ($is_moderator) {
     $instructor_name = fullname($USER);
+    $instructor_id = (int)$USER->id;
 } else {
     $instructor_name = '';
+    $instructor_id = 2;
     $teachers = get_enrolled_users($context, 'mod/liveclass:moderate');
     if (!empty($teachers)) {
         $t = reset($teachers);
         $instructor_name = fullname($t);
+        $instructor_id = (int)$t->id;
     }
 }
 
@@ -284,6 +292,7 @@ $PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
     'displayName'      => $displayname,
     'currentUserId'    => (int)$USER->id,
     'instructorName'   => $instructor_name ?: get_string('instructor', 'mod_liveclass'),
+    'instructorId'     => (int)$instructor_id,
     'isModerator'      => (bool)$is_moderator,
     'sessionId'        => (int)$session_id,
     'cmid'             => (int)$cm->id,
