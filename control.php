@@ -118,7 +118,10 @@ switch ($action) {
         if ($session_id > 0 && $target_user > 0) {
             \mod_liveclass\attendance_engine::log_presence_event($session_id, $target_user, 'lower_hand', 'Moderator lowered hand');
         }
-        echo json_encode(['status' => 'success']);
+        echo json_encode([
+            'status'  => 'success',
+            'message' => get_string('lower_hand_success', 'mod_liveclass')
+        ]);
         break;
 
     case 'endsession':

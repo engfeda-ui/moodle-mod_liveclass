@@ -545,7 +545,7 @@ echo $OUTPUT->header();
                                                 <div>
                                                     <div class="fw-bold">
                                                         <?php echo s($st->fullname); ?>
-                                                        <span id="roster-hand-<?php echo $st->id; ?>" class="badge bg-warning text-dark border border-warning shadow-sm animate-bounce ms-2 badge-hand-raised <?php echo empty($st->hand_raised) ? 'd-none' : ''; ?>">✋ <?php echo get_string('raise_hand', 'mod_liveclass'); ?></span>
+                                                        <span id="roster-hand-<?php echo $st->id; ?>" class="badge bg-warning text-dark border border-warning shadow-sm animate-bounce ms-2 badge-hand-raised <?php echo empty($st->hand_raised) ? 'd-none' : ''; ?>" data-userid="<?php echo $st->id; ?>" role="button" title="<?php echo get_string('lower_hand', 'mod_liveclass'); ?>" style="cursor: pointer;">✋ <?php echo get_string('raise_hand', 'mod_liveclass'); ?> (<?php echo get_string('lower_hand', 'mod_liveclass'); ?>)</span>
                                                     </div>
                                                     <div class="small text-muted"><?php echo s($st->email); ?></div>
                                                 </div>
@@ -940,6 +940,25 @@ echo $OUTPUT->header();
                     }
                 });
             }
+
+            // Click on individual student hand badge in roster to lower it
+            document.addEventListener('click', function(e) {
+                var badge = e.target.closest('.badge-hand-raised');
+                if (badge && badge.dataset.userid) {
+                    var uid = badge.dataset.userid;
+                    badge.classList.add('opacity-50');
+                    fetch('control.php?cmid=' + cmid + '&action=lower_hand&target_userid=' + uid + '&sesskey=' + sesskey)
+                        .then(function(r) { return r.json(); })
+                        .then(function(res) {
+                            badge.classList.add('d-none');
+                            badge.classList.remove('opacity-50');
+                            refreshRoster();
+                        })
+                        .catch(function() {
+                            badge.classList.remove('opacity-50');
+                        });
+                }
+            });
 
             // End session for everyone button handler
             var endSessionBtn = document.getElementById('btn-end-session');

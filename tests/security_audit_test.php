@@ -120,22 +120,7 @@ if (strpos($heartbeat, 'IDOR guard triggered') === false) {
     $errors[] = "heartbeat.php missing IDOR session check";
 }
 
-// 10. Audit frame.php (Live Camera Snapshot Streaming Endpoint)
-$frame = file_get_contents($root . '/frame.php');
-if (strpos($frame, 'confirm_sesskey()') === false) {
-    $errors[] = "frame.php missing CSRF sesskey protection";
-}
-if (strpos($frame, 'require_login()') === false) {
-    $errors[] = "frame.php missing require_login()";
-}
-if (strpos($frame, "require_capability('mod/liveclass:view'") === false) {
-    $errors[] = "frame.php missing view capability check";
-}
-if (strpos($frame, 'IDOR guard triggered') === false) {
-    $errors[] = "frame.php missing IDOR session check";
-}
-
-// 11. Audit focus_logs.php (Student Focus Loss Audit Logs)
+// 10. Audit focus_logs.php (Student Focus Loss Audit Logs)
 $flogs = file_get_contents($root . '/focus_logs.php');
 if (strpos($flogs, 'require_sesskey()') === false) {
     $errors[] = "focus_logs.php missing CSRF sesskey protection";

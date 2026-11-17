@@ -27,8 +27,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             this.timerInterval = null;
             this.heartbeatInterval = null;
             this.pollInterval = null;
-            this.frameBroadcastInterval = null;
-            this.frameRefreshInterval = null;
             this.handAlertTimeout = null;
             this.raisedHandUsers = new Set();
             this.activePollId = 0;
@@ -101,14 +99,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                                 <i class="fa fa-users text-info"></i> <span id="online-students-count">1</span> متواجدون في القاعة
                             </div>
                         </div>
-
-                        <!-- Live Instructor Frame Fallback for Students -->
-                        <img id="speaker-instructor-frame" 
-                             src="${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${self.config.instructorId || 2}&t=${Date.now()}" 
-                             class="w-100 h-100 position-absolute top-0 start-0" 
-                             style="object-fit: cover; border-radius: 12px; z-index: 0;"
-                             onerror="this.style.display='none'; $('#speaker-fallback-stage').show();"
-                             onload="if(this.naturalWidth > 60){ this.style.display='block'; $('#speaker-fallback-stage').hide(); }">
 
                         <!-- Central Visual Presentation Stage Fallback -->
                         <div id="speaker-fallback-stage" class="d-flex flex-column justify-content-center align-items-center text-center my-auto py-4 z-1">
@@ -279,8 +269,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             self.bindToolbarControls();
             self.startPollWatcher();
             self.startHeartbeatLoop();
-            self.startFrameBroadcast();
-            self.startFrameRefreshLoop();
         }
 
         showToast(type, message) {
@@ -302,8 +290,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             const self = this;
             const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
             if (!LK || !LK.Room) {
-                console.warn('[LiveClass] LiveKit SDK not available in AMD scope, falling back to HTTP frames.');
-                self.initMediaStream();
+                console.error('[LiveClass] LiveKit WebRTC SDK not loaded.');
                 return;
             }
 
@@ -347,15 +334,57 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     self.handleTrackMuteState(participant, false);
                 });
 
-                // Real-time DataChannel Messages (Instant Mute All, Chimes, Polls)
+                // Real-time DataChannel Messages (Instant Mute All, Hand Raises, Lower Hands, Polls)
                 room.on(LK.RoomEvent.DataReceived, (payload, participant) => {
                     try {
                         const str = new TextDecoder().decode(payload);
                         const data = JSON.parse(str);
+
                         if (data.type === 'mute_all' && !self.config.isModerator) {
                             self.muteLocalMic();
                             $('#mute-notice').removeClass('d-none');
                             setTimeout(() => { $('#mute-notice').addClass('d-none'); }, 5000);
+                        } else if (data.type === 'lower_all_hands') {
+                            if (!self.config.isModerator) {
+                                self.isHandRaised = false;
+                                $('#btn-raise-hand').removeClass('btn-warning text-dark').addClass('btn-outline-warning');
+                                self.showToast('info', 'قام المحاضر بخفض جميع الأيدي المرتفعة');
+                            } else {
+                                self.raisedHandUsers = new Set();
+                                $('#hand-raise-alert').addClass('d-none');
+                                $('.gallery-tile .hand-badge').remove();
+                            }
+                        } else if (data.type === 'lower_hand') {
+                            if (data.userid === self.config.currentUserId && !self.config.isModerator) {
+                                self.isHandRaised = false;
+                                $('#btn-raise-hand').removeClass('btn-warning text-dark').addClass('btn-outline-warning');
+                                self.showToast('info', 'قام المحاضر بخفض يدك');
+                            } else if (self.config.isModerator && data.userid) {
+                                self.raisedHandUsers.delete(data.userid);
+                                $(`#gallery-tile-${data.userid} .hand-badge`).remove();
+                                if (self.raisedHandUsers.size === 0) {
+                                    $('#hand-raise-alert').addClass('d-none');
+                                }
+                            }
+                        } else if (data.type === 'hand_state_changed') {
+                            if (self.config.isModerator && data.userid) {
+                                if (data.handRaised) {
+                                    self.playHandRaiseChime();
+                                    $('#hand-raise-student-name').text(data.fullname || 'متدرب');
+                                    $('#hand-raise-alert').removeClass('d-none');
+                                    self.raisedHandUsers.add(data.userid);
+                                    const tile = $(`#gallery-tile-${data.userid}`);
+                                    if (tile.length && !tile.find('.hand-badge').length) {
+                                        tile.prepend(`<div class="hand-badge hand-badge-clickable animate-bounce" data-userid="${data.userid}" title="انقر لخفض يد الطالب">✋</div>`);
+                                    }
+                                } else {
+                                    self.raisedHandUsers.delete(data.userid);
+                                    $(`#gallery-tile-${data.userid} .hand-badge`).remove();
+                                    if (self.raisedHandUsers.size === 0) {
+                                        $('#hand-raise-alert').addClass('d-none');
+                                    }
+                                }
+                            }
                         }
                     } catch (e) {
                         console.warn('[LiveClass] DataReceived parse error:', e);
@@ -459,7 +488,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         }
                         spkVideo.style.display = 'block';
                         $('#speaker-fallback-stage').hide();
-                        $('#speaker-instructor-frame').hide();
                     }
 
                     // 2. Attach to Gallery Grid Instructor Tile
@@ -481,7 +509,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         }
                         instVideo.style.display = 'block';
                         $('#fallback-instructor-avatar').hide();
-                        $('#live-frame-instructor').hide();
                     }
                 } else {
                     // Student Video Tile in Gallery Grid
@@ -503,7 +530,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         }
                         studentVideo.style.display = 'block';
                         $(`#fallback-avatar-${userId}`).hide();
-                        $(`#live-frame-${userId}`).hide();
                     }
                 }
             }
@@ -737,7 +763,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                             existingTile.find('.badge-percent').text(`${st.percent}%`);
                             const handEl = existingTile.find('.hand-badge');
                             if (st.handRaised && !handEl.length) {
-                                existingTile.prepend('<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>');
+                                existingTile.prepend(`<div class="hand-badge animate-bounce ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${st.id}" title="${self.config.isModerator ? 'انقر لخفض يد الطالب' : 'رفع اليد للمشاركة'}">✋</div>`);
                             } else if (!st.handRaised && handEl.length) {
                                 handEl.remove();
                             }
@@ -745,7 +771,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                             // New student joined: append tile
                             const newTileHtml = `
                                 <div class="gallery-tile student-tile tile-active shadow position-relative" id="gallery-tile-${st.id}" data-userid="${st.id}">
-                                    ${st.handRaised ? '<div class="hand-badge animate-bounce" title="رفع اليد للمشاركة">✋</div>' : ''}
+                                    ${st.handRaised ? `<div class="hand-badge animate-bounce ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${st.id}" title="${self.config.isModerator ? 'انقر لخفض يد الطالب' : 'رفع اليد للمشاركة'}">✋</div>` : ''}
                                     <video id="livekit-video-${st.id}" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; z-index: 2; display: none;" autoplay playsinline></video>
                                     <img id="fallback-avatar-${st.id}" src="${st.avatar}" class="tile-avatar shadow-sm" alt="${st.fullname}" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
                                     <div class="tile-name mt-auto z-3" title="${st.fullname}">${st.fullname}</div>
@@ -799,7 +825,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     connectedStudents.forEach(st => {
                         filmstripHtml += `
                             <div class="filmstrip-card card-active shadow-sm" title="${st.fullname}">
-                                ${st.handRaised ? '<div class="hand-badge" style="top:2px; right:2px; width:22px; height:22px; font-size:0.75rem;">✋</div>' : ''}
+                                ${st.handRaised ? `<div class="hand-badge ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${st.id}" style="top:2px; right:2px; width:22px; height:22px; font-size:0.75rem;" title="${self.config.isModerator ? 'انقر لخفض يد الطالب' : ''}">✋</div>` : ''}
                                 <img src="${st.avatar}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #22c55e;" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
                                 <div class="text-white text-truncate small mt-1 w-100 text-center" style="font-size: 0.75rem;">${st.fullname}</div>
                                 <span class="badge bg-success" style="font-size: 0.6rem;">${st.percent}%</span>
@@ -811,92 +837,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     filmstripEl.addClass('d-none');
                 }
             }
-        }
-
-        startFrameBroadcast() {
-            const self = this;
-            const canvas = document.createElement('canvas');
-            canvas.width = 320;
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d');
-
-            this.frameBroadcastInterval = setInterval(() => {
-                // Completely silence HTTP frame polling when LiveKit WebRTC is active
-                if (self.livekitRoom && self.livekitRoom.state === 'connected') return;
-                if (!self.localStream || self.isCamOff) return;
-
-                const videoEl = self.captureVideo || document.getElementById('local-video') || document.getElementById('gallery-instructor-video');
-                if (videoEl && videoEl.videoWidth > 0) {
-                    try {
-                        ctx.drawImage(videoEl, 0, 0, 320, 240);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
-
-                        const formData = new FormData();
-                        formData.append('action', 'push');
-                        formData.append('sesskey', self.config.sesskey);
-                        formData.append('sessionid', self.config.sessionId);
-                        formData.append('frame', dataUrl);
-
-                        fetch(M.cfg.wwwroot + '/mod/liveclass/frame.php', {
-                            method: 'POST',
-                            body: formData
-                        }).catch(() => {});
-                    } catch (e) {
-                        // Suppress transient frame capture errors
-                    }
-                }
-            }, 2500);
-        }
-
-        startFrameRefreshLoop() {
-            const self = this;
-            this.frameRefreshInterval = setInterval(() => {
-                // Completely silence HTTP frame polling when LiveKit WebRTC is active
-                if (self.livekitRoom && self.livekitRoom.state === 'connected') return;
-                if (!self.participants || self.participants.length === 0) return;
-                const now = Date.now();
-
-                self.participants.forEach(st => {
-                    if (st.id === self.config.currentUserId) return;
-                    if (st.status === 'in_class') {
-                        const lkVideo = document.getElementById(`livekit-video-${st.id}`);
-                        if (!lkVideo) {
-                            const img = document.getElementById(`live-frame-${st.id}`);
-                            if (img) {
-                                const nextImg = new Image();
-                                nextImg.onload = function() {
-                                    if (nextImg.naturalWidth > 60) {
-                                        img.src = nextImg.src;
-                                        img.style.display = 'block';
-                                        const fb = document.getElementById(`fallback-avatar-${st.id}`);
-                                        if (fb) fb.style.display = 'none';
-                                    }
-                                };
-                                nextImg.src = `${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=${st.id}&t=${now}`;
-                            }
-                        }
-                    }
-                });
-
-                if (!self.config.isModerator) {
-                    const lkSpkVideo = document.getElementById('livekit-speaker-video');
-                    if (!lkSpkVideo) {
-                        const instImg = document.getElementById('live-frame-instructor') || document.getElementById('speaker-instructor-frame');
-                        if (instImg) {
-                            const nextInst = new Image();
-                            nextInst.onload = function() {
-                                if (nextInst.naturalWidth > 60) {
-                                    instImg.src = nextInst.src;
-                                    instImg.style.display = 'block';
-                                    const fb = document.getElementById('fallback-instructor-avatar');
-                                    if (fb) fb.style.display = 'none';
-                                }
-                            };
-                            nextInst.src = `${M.cfg.wwwroot}/mod/liveclass/frame.php?sessionid=${self.config.sessionId}&action=get&userid=2&t=${now}`;
-                        }
-                    }
-                }
-            }, 2500);
         }
 
         startHeartbeatLoop() {
@@ -974,6 +914,17 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                             self.raisedHandUsers = currentRaised;
 
                             self.renderParticipants();
+                        }
+
+                        // Reconcile student's own hand raise state with authoritative server state
+                        if (!self.config.isModerator && res.my_hand_raised !== undefined) {
+                            if (self.isHandRaised !== res.my_hand_raised) {
+                                self.isHandRaised = res.my_hand_raised;
+                                $('#btn-raise-hand').toggleClass('btn-outline-warning btn-warning text-dark', self.isHandRaised);
+                                if (!self.isHandRaised) {
+                                    self.showToast('info', 'تم خفض يدك من قِبل المحاضر');
+                                }
+                            }
                         }
 
                         // Remote Mute enforcement from moderator
@@ -1147,8 +1098,26 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
 
             $('#btn-raise-hand').on('click', function() {
                 self.isHandRaised = !self.isHandRaised;
-                $(this).toggleClass('btn-outline-warning btn-warning text-dark');
+                $(this).toggleClass('btn-outline-warning btn-warning text-dark', self.isHandRaised);
                 self.logEvent(self.isHandRaised ? 'raise_hand' : 'lower_hand', 'Student toggled hand raise');
+
+                // Instant LiveKit DataChannel broadcast to instructor and peers
+                if (self.livekitRoom && self.livekitRoom.localParticipant) {
+                    try {
+                        const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
+                        const payload = new TextEncoder().encode(JSON.stringify({
+                            type: 'hand_state_changed',
+                            userid: self.config.currentUserId,
+                            fullname: self.config.displayName,
+                            handRaised: self.isHandRaised
+                        }));
+                        const kind = (LK.DataPacket_Kind && LK.DataPacket_Kind.RELIABLE !== undefined) ? LK.DataPacket_Kind.RELIABLE : 0;
+                        self.livekitRoom.localParticipant.publishData(payload, kind);
+                    } catch (e) {
+                        console.warn('[LiveClass] Hand raise publish error:', e);
+                    }
+                }
+
                 self.fetchHeartbeat();
             });
 
@@ -1180,15 +1149,41 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
 
             // Moderator Command: Lower all hands
             $('#btn-stage-lower-hands').on('click', function() {
+                const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
+                // 1. Instant DataChannel broadcast to all students
+                if (self.livekitRoom && self.livekitRoom.localParticipant) {
+                    try {
+                        const payload = new TextEncoder().encode(JSON.stringify({ type: 'lower_all_hands' }));
+                        const kind = (LK.DataPacket_Kind && LK.DataPacket_Kind.RELIABLE !== undefined) ? LK.DataPacket_Kind.RELIABLE : 0;
+                        self.livekitRoom.localParticipant.publishData(payload, kind);
+                    } catch (e) {
+                        console.warn('[LiveClass] Lower all hands WebRTC broadcast error:', e);
+                    }
+                }
+                self.raisedHandUsers = new Set();
+                $('#hand-raise-alert').addClass('d-none');
+                $('.gallery-tile .hand-badge').remove();
+
+                // 2. Persist in DB via control.php
                 fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=lower_all_hands&sesskey=' + self.config.sesskey)
                     .then(r => r.json())
                     .then(res => {
-                        if (res.status === 'success') {
-                            self.raisedHandUsers = new Set();
-                            $('#hand-raise-alert').addClass('d-none');
-                            self.fetchHeartbeat();
-                        }
+                        self.showToast('success', res.message || 'تم خفض جميع الأيدي المرتفعة بنجاح');
+                        self.fetchHeartbeat();
+                    })
+                    .catch(err => {
+                        console.error('[LiveClass] Lower all hands error:', err);
                     });
+            });
+
+            // Moderator Command: Lower single student hand on tile click
+            $(document).on('click', '.hand-badge-clickable', function(e) {
+                e.stopPropagation();
+                if (!self.config.isModerator) return;
+                const uid = parseInt($(this).data('userid'), 10);
+                if (uid) {
+                    self.lowerStudentHand(uid);
+                }
             });
 
             // Moderator Command: Toggle Recording (recordingMode === 2)
@@ -1386,6 +1381,38 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             });
         }
 
+        lowerStudentHand(userId) {
+            const self = this;
+            const LK = (LivekitClient && LivekitClient.Room) ? LivekitClient : (window.LivekitClient || {});
+
+            // 1. Instant DataChannel broadcast to target student
+            if (self.livekitRoom && self.livekitRoom.localParticipant) {
+                try {
+                    const payload = new TextEncoder().encode(JSON.stringify({ type: 'lower_hand', userid: userId }));
+                    const kind = (LK.DataPacket_Kind && LK.DataPacket_Kind.RELIABLE !== undefined) ? LK.DataPacket_Kind.RELIABLE : 0;
+                    self.livekitRoom.localParticipant.publishData(payload, kind);
+                } catch (e) {
+                    console.warn('[LiveClass] Lower single hand publish error:', e);
+                }
+            }
+            self.raisedHandUsers.delete(userId);
+            $(`#gallery-tile-${userId} .hand-badge`).remove();
+            if (self.raisedHandUsers.size === 0) {
+                $('#hand-raise-alert').addClass('d-none');
+            }
+
+            // 2. Persist in DB via control.php
+            fetch(M.cfg.wwwroot + '/mod/liveclass/control.php?cmid=' + self.config.cmid + '&action=lower_hand&target_userid=' + userId + '&sesskey=' + self.config.sesskey)
+                .then(r => r.json())
+                .then(res => {
+                    self.showToast('success', res.message || 'تم خفض يد المتدرب');
+                    self.fetchHeartbeat();
+                })
+                .catch(err => {
+                    console.error('[LiveClass] Lower student hand error:', err);
+                });
+        }
+
         leaveClassroom() {
             this.sendLeaveBeacon();
             if (this.livekitRoom) {
@@ -1396,8 +1423,6 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
             if (this.pollInterval) clearInterval(this.pollInterval);
-            if (this.frameBroadcastInterval) clearInterval(this.frameBroadcastInterval);
-            if (this.frameRefreshInterval) clearInterval(this.frameRefreshInterval);
             if (this.handAlertTimeout) clearTimeout(this.handAlertTimeout);
             if (this.localStream) this.localStream.getTracks().forEach(t => t.stop());
             if (this.screenStream) this.screenStream.getTracks().forEach(t => t.stop());

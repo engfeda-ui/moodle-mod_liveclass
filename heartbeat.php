@@ -114,7 +114,7 @@ switch ($action) {
 
         // Synchronize client-reported hand raise state with presence logs.
         $last_hand_event = $DB->get_record_sql("
-            SELECT id, event_type 
+            SELECT id, event_type, timestamp 
               FROM {liveclass_presence_logs}
              WHERE sessionid = :sid 
                AND userid = :uid 
@@ -122,9 +122,14 @@ switch ($action) {
              ORDER BY id DESC
         ", ['sid' => $sessionid, 'uid' => $userid], IGNORE_MULTIPLE);
 
-        if ($hand_raised && (!$last_hand_event || $last_hand_event->event_type !== 'raise_hand')) {
-            \mod_liveclass\attendance_engine::log_presence_event($sessionid, $userid, 'raise_hand', 'Student raised hand via heartbeat');
-        } else if (!$hand_raised && $last_hand_event && $last_hand_event->event_type === 'raise_hand') {
+        if ($hand_raised) {
+            // Guard: If moderator lowered hand recently (within last 25s), do not allow stale client heartbeat to re-raise it.
+            if ($last_hand_event && $last_hand_event->event_type === 'lower_hand' && ($now - (int)$last_hand_event->timestamp) < 25) {
+                $hand_raised = 0;
+            } else if (!$last_hand_event || $last_hand_event->event_type !== 'raise_hand') {
+                \mod_liveclass\attendance_engine::log_presence_event($sessionid, $userid, 'raise_hand', 'Student raised hand via heartbeat');
+            }
+        } else if ($last_hand_event && $last_hand_event->event_type === 'raise_hand') {
             \mod_liveclass\attendance_engine::log_presence_event($sessionid, $userid, 'lower_hand', 'Student lowered hand via heartbeat');
         }
 
@@ -191,6 +196,8 @@ switch ($action) {
             }
         }
 
+        $my_hand_raised = !empty($raised_hands[$userid]);
+
         echo json_encode([
             'status'         => 'success',
             'duration'       => $result['duration_seconds'] ?? 0,
@@ -199,6 +206,7 @@ switch ($action) {
             'active_students'=> $active_count,
             'participants'   => $participants,
             'must_mute'      => (bool)$recent_mute,
+            'my_hand_raised' => (bool)$my_hand_raised,
             'is_recording'   => (bool)$is_recording,
             'server_time'    => $now
         ]);

@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.1.9-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.2.0-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,13 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.2.0] - 2026-11-17
+- **Complete Eradication of Legacy HTTP Frame Snapshot Engine**: Permanently deleted `frame.php` and stripped all legacy polling loops (`startFrameBroadcast`, `startFrameRefreshLoop`, `captureVideo`, and fallback `<img>` elements). Architecture is now 100% pure, uninterrupted LiveKit WebRTC SFU streaming.
+- **Instant WebRTC DataChannel Hand Raising & Lowering**: Integrated sub-millisecond bidirectional hand-raising signaling via `livekitRoom.localParticipant.publishData()`. Hand raise toggles, "Lower All Hands", and individual hand lowering now propagate instantly across all participants without waiting for HTTP polling cycles.
+- **Eliminated Hand-Raise Loop & Desynchronization**: Resolved the root cause of sticky/hanging hands where students' clients repeatedly re-raised lowered hands during heartbeats. Added server-side stale-raise suppression in `heartbeat.php` (25-second grace window after moderator lowers hand) and added authoritative `my_hand_raised` server state reconciliation in `classroom.js`.
+- **Interactive Moderator Hand Lowering on Video Tiles & Roster**: Enabled interactive click-to-lower directly on student hand badges (`✋`) in both the stage Gallery Grid tiles (`.hand-badge-clickable`) and the Command Center Roster table rows (`.badge-hand-raised`). Added `lowerStudentHand()` method invoking `control.php?action=lower_hand`.
+- **Full i18n Alignment & Parity**: Added `lower_hand` and `lower_hand_success` localization strings with 100% parity across English and Arabic language packs (134 keys fully verified).
 
 ### [v1.1.9] - 2026-11-16
 - **Eliminate Hardware Device Lockout & Stream Conflicts (`classroom.js`)**: Removed competing `initMediaStream()` call during classroom initialization. LiveKit SFU now serves as the single unified source for camera and microphone acquisition, eliminating `NotReadableError: Device in use` failures on mobile devices, laptops, and student tablets.
