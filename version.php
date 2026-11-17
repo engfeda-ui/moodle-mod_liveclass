@@ -24,9 +24,14 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2026111701;       // The current module version (Date: YYYYMMDDXX).
+defined('MATURITY_ALPHA') || define('MATURITY_ALPHA', 50);
+
+/** @var \stdClass $plugin */
+$plugin = $plugin ?? new \stdClass();
+
+$plugin->version = 2026111702;       // The current module version (Date: YYYYMMDDXX).
 $plugin->requires = 2022041900;       // Requires Moodle 4.0+.
 $plugin->component = 'mod_liveclass';   // Full name of the plugin (used for diagnostics).
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = 'v1.2.0 (Sanad EWA Edition)';
+$plugin->release = 'v1.2.1 (Sanad EWA Edition)';
 

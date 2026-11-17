@@ -25,6 +25,8 @@
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
+global $DB;
+
 $id = required_param('id', PARAM_INT); // Course Module ID.
 $groupid = optional_param('group', 0, PARAM_INT);
 
@@ -33,7 +35,7 @@ $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 $liveclass = $DB->get_record('liveclass', ['id' => $cm->instance], '*', MUST_EXIST);
 
 require_login($course, false, $cm);
-$context = context_module::instance($cm->id);
+$context = \context_module::instance($cm->id);
 require_capability('mod/liveclass:viewattendance', $context);
 
 $roster = \mod_liveclass\roster_manager::get_roster_data($cm, $liveclass, $groupid);

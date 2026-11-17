@@ -27,6 +27,8 @@ define('AJAX_SCRIPT', true);
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
+global $DB, $USER;
+
 header('Content-Type: application/json; charset=utf-8');
 
 $cmid      = required_param('cmid', PARAM_INT);
@@ -34,7 +36,7 @@ $target_id = required_param('userid', PARAM_INT);
 require_sesskey();
 
 list($course, $cm) = get_course_and_cm_from_cmid($cmid, 'liveclass');
-$context = context_module::instance($cm->id);
+$context = \context_module::instance($cm->id);
 require_login($course, false, $cm);
 require_capability('mod/liveclass:moderate', $context);
 

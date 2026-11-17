@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.2.0-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.2.1-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,13 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.2.1] - 2026-11-17
+- **IDE Diagnostic & Static Analysis Hygiene (`control.php`, `heartbeat.php`, `version.php`)**:
+  - Resolved Intelephense P1008 `Undefined variable '$DB'` and `Undefined variable '$USER'` diagnostics by declaring explicit `global $DB, $USER;` in standalone module endpoints (`control.php`, `heartbeat.php`, `focus_logs.php`, `get_roster.php`, `nudge.php`, `poll_api.php`, `export.php`, `log_event.php`, `view.php`).
+  - Resolved Intelephense P1011 `Undefined constant 'MATURITY_ALPHA'` and P1008 `Undefined variable '$plugin'` in `version.php` using safe Moodle fallback guards and type hints (`defined('MATURITY_ALPHA') || define('MATURITY_ALPHA', 50); /** @var \stdClass $plugin */ $plugin = $plugin ?? new \stdClass();`).
+  - Fixed root namespace resolution for `\context_module::instance()` across all endpoints to prevent class resolution warnings.
+  - Fixed DocBlock indentation in `heartbeat.php` header to conform with Moodle PHPCS standards.
 
 ### [v1.2.0] - 2026-11-17
 - **Complete Eradication of Legacy HTTP Frame Snapshot Engine**: Permanently deleted `frame.php` and stripped all legacy polling loops (`startFrameBroadcast`, `startFrameRefreshLoop`, `captureVideo`, and fallback `<img>` elements). Architecture is now 100% pure, uninterrupted LiveKit WebRTC SFU streaming.

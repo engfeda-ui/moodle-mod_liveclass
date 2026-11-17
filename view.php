@@ -25,6 +25,8 @@
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
+global $CFG, $DB, $PAGE, $OUTPUT, $USER;
+
 $id = optional_param('id', 0, PARAM_INT); // Course Module ID.
 $l  = optional_param('l', 0, PARAM_INT);  // Liveclass instance ID.
 
@@ -39,7 +41,7 @@ if ($id) {
 }
 
 require_login($course, true, $cm);
-$context = context_module::instance($cm->id);
+$context = \context_module::instance($cm->id);
 require_capability('mod/liveclass:view', $context);
 
 $is_moderator = has_capability('mod/liveclass:moderate', $context);
