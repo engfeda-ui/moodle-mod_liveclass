@@ -44,6 +44,14 @@ $context = \context_module::instance($cm->id);
 require_capability('mod/liveclass:moderate', $context);
 
 $target_user = $DB->get_record('user', ['id' => $target_userid, 'deleted' => 0], '*', MUST_EXIST);
+// The target must be enrolled in this module's course.
+if (!is_enrolled($context, $target_user)) {
+    echo json_encode([
+        'status'  => 'error',
+        'message' => get_string('user_not_enrolled', 'mod_liveclass')
+    ]);
+    exit;
+}
 
 // Prepare notification message.
 $classroom_url = new moodle_url('/mod/liveclass/view.php', ['id' => $cm->id]);

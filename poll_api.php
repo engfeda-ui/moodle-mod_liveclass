@@ -31,7 +31,7 @@ global $DB, $USER;
 
 header('Content-Type: application/json; charset=utf-8');
 
-$action = required_param('action', PARAM_ALPHA);
+$action = required_param('action', PARAM_ALPHANUMEXT);
 $cmid   = required_param('cmid', PARAM_INT);
 require_sesskey();
 
@@ -48,7 +48,7 @@ switch ($action) {
     case 'create':
         require_capability('mod/liveclass:moderate', $context);
 
-        $question = required_param('question', PARAM_TEXT);
+        $question = substr(required_param('question', PARAM_TEXT), 0, 255);
         $options_raw = required_param('options', PARAM_RAW);
         $duration = optional_param('duration', 30, PARAM_INT);
 
@@ -67,7 +67,7 @@ switch ($action) {
             'liveclassid'      => (int)$liveclass->id,
             'sessionid'        => $session_id,
             'question'         => $question,
-            'options'          => json_encode($options, JSON_UNESCAPED_UNICODE),
+            'options_json'     => json_encode($options, JSON_UNESCAPED_UNICODE),
             'duration_seconds' => max(10, min(300, $duration)),
             'timecreated'      => time(),
             'timemodified'     => time()
@@ -119,7 +119,7 @@ switch ($action) {
             'poll'         => [
                 'id'           => (int)$active_poll->id,
                 'question'     => $active_poll->question,
-                'options'      => json_decode($active_poll->options, true),
+                'options'      => json_decode($active_poll->options_json, true),
                 'duration'     => (int)$active_poll->duration_seconds,
                 'time_left'    => $time_left,
                 'has_answered' => $has_answered,
@@ -130,7 +130,7 @@ switch ($action) {
 
     case 'answer':
         $poll_id = required_param('poll_id', PARAM_INT);
-        $answer  = required_param('answer', PARAM_TEXT);
+        $answer  = substr(required_param('answer', PARAM_TEXT), 0, 255);
 
         $poll = $DB->get_record('liveclass_polls', ['id' => $poll_id, 'liveclassid' => $liveclass->id], '*', MUST_EXIST);
 
@@ -161,7 +161,7 @@ switch ($action) {
         $poll = $DB->get_record('liveclass_polls', ['id' => $poll_id], '*', MUST_EXIST);
 
         $answers = $DB->get_records('liveclass_poll_answers', ['pollid' => $poll_id]);
-        $options = json_decode($poll->options, true) ?: [];
+        $options = json_decode($poll->options_json, true) ?: [];
 
         $counts = [];
         foreach ($options as $opt) {

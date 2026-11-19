@@ -53,7 +53,7 @@ if ($payload['iss'] !== 'TEST_KEY' || $payload['sub'] !== 'user_42' || $payload[
     exit(1);
 }
 
-if (empty($payload['video']['roomJoin']) || $payload['video']['room'] !== 'test_room_101' || empty($payload['video']['roomAdmin'])) {
+if (empty($payload['video']['roomJoin']) || $payload['video']['roomName'] !== 'test_room_101' || empty($payload['video']['roomAdmin'])) {
     echo "FAIL: Video grants mismatch\n";
     exit(1);
 }

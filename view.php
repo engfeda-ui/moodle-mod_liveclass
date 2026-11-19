@@ -51,6 +51,7 @@ $PAGE->set_url('/mod/liveclass/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($liveclass->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
+$PAGE->requires->css('/mod/liveclass/styles.css');
 
 $now = time();
 $start_time = (int)$liveclass->start_time;
@@ -102,7 +103,7 @@ if (!$is_moderator && $start_time > 0 && $now < $start_time) {
 
                         <div class="d-flex justify-content-center gap-2">
                             <button onclick="window.location.reload();" class="btn btn-outline-primary rounded-pill px-4">
-                                <i class="fa fa-refresh"></i> تحديث الآن
+                                <i class="fa fa-refresh"></i> <?php echo get_string('refresh_now', 'mod_liveclass'); ?>
                             </button>
                             <a href="<?php echo $CFG->wwwroot; ?>/course/view.php?id=<?php echo $course->id; ?>" class="btn btn-secondary rounded-pill px-4">
                                 <i class="fa fa-arrow-left"></i> <?php echo get_string('return_to_course', 'mod_liveclass'); ?>
@@ -187,12 +188,12 @@ if (!$is_moderator && ($is_session_expired || $is_explicitly_closed || (!$sessio
                                 <i class="fa fa-user-circle me-1"></i> <?php echo get_string('attendance_summary', 'mod_liveclass'); ?>
                             </h6>
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">مدة حضورك المسجلة:</span>
-                                <span class="fw-bold"><?php echo $att_mins; ?> دقيقة</span>
+                                <span class="text-muted"><?php echo get_string('recorded_duration_label', 'mod_liveclass'); ?></span>
+                                <span class="fw-bold"><?php echo (int)$att_mins; ?> <?php echo get_string('minutes_unit', 'mod_liveclass'); ?></span>
                             </div>
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">نسبة الحضور المحققة:</span>
-                                <span class="fw-bold <?php echo $is_met ? 'text-success' : 'text-danger'; ?>"><?php echo $att_pct; ?>% (الحد الأدنى: <?php echo $req_pct; ?>%)</span>
+                                <span class="text-muted"><?php echo get_string('attendance_pct_label', 'mod_liveclass'); ?></span>
+                                <span class="fw-bold <?php echo $is_met ? 'text-success' : 'text-danger'; ?>"><?php echo (int)$att_pct; ?>% (<?php echo get_string('attendance_min_label', 'mod_liveclass'); ?>: <?php echo (int)$req_pct; ?>%)</span>
                             </div>
                             <div class="mt-2 text-center">
                                 <?php if ($is_met): ?>
@@ -261,7 +262,7 @@ if ($is_moderator) {
     $instructor_id = (int)$USER->id;
 } else {
     $instructor_name = '';
-    $instructor_id = 2;
+    $instructor_id = 0;
     $teachers = get_enrolled_users($context, 'mod/liveclass:moderate');
     if (!empty($teachers)) {
         $t = reset($teachers);
@@ -327,16 +328,16 @@ echo $OUTPUT->header();
         <div class="alert alert-info border-0 shadow-sm rounded-3 mb-3 d-flex align-items-center">
             <i class="fa fa-info-circle fa-2x me-3 ms-2 text-info"></i>
             <div>
-                <strong>تنبيه للمدرب:</strong> <?php echo get_string('moderator_early_notice', 'mod_liveclass'); ?>
-                <div class="small text-muted mt-1">موعد البدء المجدول: <?php echo userdate($start_time); ?> (بعد <?php echo format_time($start_time - $now); ?>).</div>
+                <strong><?php echo get_string('moderator_notice_prefix', 'mod_liveclass'); ?></strong> <?php echo get_string('moderator_early_notice', 'mod_liveclass'); ?>
+                <div class="small text-muted mt-1"><?php echo get_string('scheduled_start', 'mod_liveclass'); ?>: <?php echo userdate($start_time); ?> (<?php echo format_time($start_time - $now); ?>).</div>
             </div>
         </div>
     <?php elseif ($is_moderator && $end_time > 0 && $now > $end_time): ?>
         <div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3 d-flex align-items-center">
             <i class="fa fa-exclamation-triangle fa-2x me-3 ms-2 text-warning"></i>
             <div>
-                <strong>تنبيه للمدرب:</strong> <?php echo get_string('moderator_ended_notice', 'mod_liveclass'); ?>
-                <div class="small text-muted mt-1">انتهى موعد الحصة المجدول في: <?php echo userdate($end_time); ?>. المتدربون لا يستطيعون الدخول حالياً.</div>
+                <strong><?php echo get_string('moderator_notice_prefix', 'mod_liveclass'); ?></strong> <?php echo get_string('moderator_ended_notice', 'mod_liveclass'); ?>
+                <div class="small text-muted mt-1"><?php echo get_string('scheduled_end', 'mod_liveclass'); ?>: <?php echo userdate($end_time); ?>. <?php echo get_string('students_blocked_msg', 'mod_liveclass'); ?></div>
             </div>
         </div>
     <?php endif; ?>
@@ -470,7 +471,7 @@ echo $OUTPUT->header();
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <div class="text-muted small text-uppercase fw-bold"><?php echo get_string('total_students', 'mod_liveclass'); ?></div>
-                                    <h3 class="mb-0 fw-bold text-primary" id="counter-total"><?php echo $roster->total_students; ?></h3>
+                                    <h3 class="mb-0 fw-bold text-primary" id="counter-total"><?php echo (int)$roster->total_students; ?></h3>
                                 </div>
                                 <div class="text-primary opacity-50"><i class="fa fa-users fa-2x"></i></div>
                             </div>
@@ -483,7 +484,7 @@ echo $OUTPUT->header();
                                     <div class="text-success small text-uppercase fw-bold">
                                         <span class="pulse-dot pulse-dot-green"></span><?php echo get_string('in_class_count', 'mod_liveclass'); ?>
                                     </div>
-                                    <h3 class="mb-0 fw-bold text-success" id="counter-inclass"><?php echo $roster->in_class_count; ?></h3>
+                                    <h3 class="mb-0 fw-bold text-success" id="counter-inclass"><?php echo (int)$roster->in_class_count; ?></h3>
                                 </div>
                                 <div class="text-success opacity-50"><i class="fa fa-video-camera fa-2x"></i></div>
                             </div>
@@ -496,7 +497,7 @@ echo $OUTPUT->header();
                                     <div class="text-warning small text-uppercase fw-bold">
                                         <span class="pulse-dot pulse-dot-amber"></span><?php echo get_string('online_moodle_count', 'mod_liveclass'); ?>
                                     </div>
-                                    <h3 class="mb-0 fw-bold text-warning" id="counter-online"><?php echo $roster->online_not_in_class_count; ?></h3>
+                                    <h3 class="mb-0 fw-bold text-warning" id="counter-online"><?php echo (int)$roster->online_not_in_class_count; ?></h3>
                                 </div>
                                 <div class="text-warning opacity-50"><i class="fa fa-globe fa-2x"></i></div>
                             </div>
@@ -509,7 +510,7 @@ echo $OUTPUT->header();
                                     <div class="text-danger small text-uppercase fw-bold">
                                         <span class="pulse-dot pulse-dot-gray"></span><?php echo get_string('absent_count', 'mod_liveclass'); ?>
                                     </div>
-                                    <h3 class="mb-0 fw-bold text-danger" id="counter-absent"><?php echo $roster->absent_count; ?></h3>
+                                    <h3 class="mb-0 fw-bold text-danger" id="counter-absent"><?php echo (int)$roster->absent_count; ?></h3>
                                 </div>
                                 <div class="text-danger opacity-50"><i class="fa fa-user-times fa-2x"></i></div>
                             </div>
@@ -535,19 +536,19 @@ echo $OUTPUT->header();
                             <?php if (empty($roster->students)): ?>
                                 <tr>
                                     <td colspan="7" class="text-center py-4 text-muted">
-                                        <i class="fa fa-info-circle"></i> <?php echo get_string('nostudentsyet'); ?>
+                                        <i class="fa fa-info-circle"></i> <?php echo get_string('nostudentsyet', 'mod_liveclass'); ?>
                                     </td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($roster->students as $st): ?>
-                                    <tr id="student-row-<?php echo $st->id; ?>">
+                                    <tr id="student-row-<?php echo (int)$st->id; ?>">
                                         <td>
                                             <div class="d-flex align-items-center">
-                                                <img src="<?php echo $st->avatar_url; ?>" class="student-avatar me-2 ms-2 shadow-sm border" alt="<?php echo s($st->fullname); ?>">
+                                                <img src="<?php echo s($st->avatar_url); ?>" class="student-avatar me-2 ms-2 shadow-sm border" alt="<?php echo s($st->fullname); ?>">
                                                 <div>
                                                     <div class="fw-bold">
                                                         <?php echo s($st->fullname); ?>
-                                                        <span id="roster-hand-<?php echo $st->id; ?>" class="badge bg-warning text-dark border border-warning shadow-sm animate-bounce ms-2 badge-hand-raised <?php echo empty($st->hand_raised) ? 'd-none' : ''; ?>" data-userid="<?php echo $st->id; ?>" role="button" title="<?php echo get_string('lower_hand', 'mod_liveclass'); ?>" style="cursor: pointer;">✋ <?php echo get_string('raise_hand', 'mod_liveclass'); ?> (<?php echo get_string('lower_hand', 'mod_liveclass'); ?>)</span>
+                                                        <span id="roster-hand-<?php echo (int)$st->id; ?>" class="badge bg-warning text-dark border border-warning shadow-sm animate-bounce ms-2 badge-hand-raised <?php echo empty($st->hand_raised) ? 'd-none' : ''; ?>" data-userid="<?php echo (int)$st->id; ?>" role="button" title="<?php echo get_string('lower_hand', 'mod_liveclass'); ?>" style="cursor: pointer;">✋ <?php echo get_string('raise_hand', 'mod_liveclass'); ?> (<?php echo get_string('lower_hand', 'mod_liveclass'); ?>)</span>
                                                     </div>
                                                     <div class="small text-muted"><?php echo s($st->email); ?></div>
                                                 </div>
@@ -574,12 +575,12 @@ echo $OUTPUT->header();
                                         <td style="min-width: 140px;">
                                             <div class="d-flex align-items-center">
                                                 <div class="progress flex-grow-1 me-2" style="height: 8px;">
-                                                    <div class="progress-bar <?php echo $st->percent >= $liveclass->min_attendance_pct ? 'bg-success' : 'bg-info'; ?>" 
-                                                         style="width: <?php echo min(100, $st->percent); ?>%;"></div>
+                                                    <div class="progress-bar <?php echo (int)$st->percent >= (int)$liveclass->min_attendance_pct ? 'bg-success' : 'bg-info'; ?>"
+                                                         style="width: <?php echo min(100, (int)$st->percent); ?>%;"></div>
                                                 </div>
-                                                <span class="small fw-bold"><?php echo $st->percent; ?>%</span>
+                                                <span class="small fw-bold"><?php echo (int)$st->percent; ?>%</span>
                                             </div>
-                                            <div class="small text-muted"><?php echo $st->duration_mins; ?> دقيقة</div>
+                                            <div class="small text-muted"><?php echo (int)$st->duration_mins; ?> <?php echo get_string('minutes_unit', 'mod_liveclass'); ?></div>
                                         </td>
                                         <td>
                                             <span class="small <?php echo ($st->status === 'online_not_in_class') ? 'text-warning-emphasis fw-bold' : 'text-muted'; ?>">
@@ -587,13 +588,13 @@ echo $OUTPUT->header();
                                             </span>
                                         </td>
                                         <td>
-                                            <?php if ($st->tab_switches > 0): ?>
-                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0 btn-focus-detail" 
-                                                        data-userid="<?php echo $st->id; ?>" 
-                                                        data-name="<?php echo s($st->fullname); ?>" 
-                                                        data-count="<?php echo $st->tab_switches; ?>" 
+                                            <?php if ((int)$st->tab_switches > 0): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0 btn-focus-detail"
+                                                        data-userid="<?php echo (int)$st->id; ?>"
+                                                        data-name="<?php echo s($st->fullname); ?>"
+                                                        data-count="<?php echo (int)$st->tab_switches; ?>"
                                                         title="<?php echo get_string('focus_alerts_desc', 'mod_liveclass'); ?>">
-                                                    <i class="fa fa-exclamation-triangle"></i> <?php echo $st->tab_switches; ?> <span style="font-size:0.75rem;">(تفاصيل)</span>
+                                                    <i class="fa fa-exclamation-triangle"></i> <?php echo (int)$st->tab_switches; ?> <span style="font-size:0.75rem;"><?php echo get_string('focus_alert_detail', 'mod_liveclass'); ?></span>
                                                 </button>
                                             <?php else: ?>
                                                 <span class="text-muted small">-</span>
@@ -601,14 +602,14 @@ echo $OUTPUT->header();
                                         </td>
                                         <td class="text-center">
                                             <?php if ($st->status === 'online_not_in_class'): ?>
-                                                <button class="btn btn-sm btn-warning text-dark btn-nudge shadow-sm" 
-                                                        data-userid="<?php echo $st->id; ?>" 
+                                                <button class="btn btn-sm btn-warning text-dark btn-nudge shadow-sm"
+                                                        data-userid="<?php echo (int)$st->id; ?>"
                                                         data-name="<?php echo s($st->fullname); ?>"
                                                         title="<?php echo get_string('action_nudge', 'mod_liveclass'); ?>">
                                                     <i class="fa fa-bell"></i> <?php echo get_string('action_nudge', 'mod_liveclass'); ?>
                                                 </button>
                                             <?php endif; ?>
-                                            <a href="<?php echo $CFG->wwwroot; ?>/message/index.php?id=<?php echo $st->id; ?>" 
+                                            <a href="<?php echo $CFG->wwwroot; ?>/message/index.php?id=<?php echo (int)$st->id; ?>"
                                                target="_blank" 
                                                class="btn btn-sm btn-outline-secondary ms-1" 
                                                title="Chat">
@@ -636,21 +637,19 @@ echo $OUTPUT->header();
                         <form id="form-create-poll">
                             <div class="mb-3">
                                 <label class="form-label fw-bold"><?php echo get_string('poll_question', 'mod_liveclass'); ?></label>
-                                <input type="text" id="poll-input-question" class="form-control" value="هل أنت متابع ومستوعب للشرح الآن؟" required>
+                                <input type="text" id="poll-input-question" class="form-control" value="<?php echo s(get_string('default_poll_question', 'mod_liveclass')); ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold"><?php echo get_string('poll_options', 'mod_liveclass'); ?></label>
-                                <textarea id="poll-input-options" class="form-control" rows="3">نعم، مستوعب تماماً
-أحتاج إعادة نقطة معينة
-لدي سؤال</textarea>
+                                <textarea id="poll-input-options" class="form-control" rows="3"><?php echo get_string('default_poll_options', 'mod_liveclass'); ?></textarea>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold"><?php echo get_string('poll_duration', 'mod_liveclass'); ?></label>
                                 <select id="poll-input-duration" class="form-select">
-                                    <option value="20">20 ثانية</option>
-                                    <option value="30" selected>30 ثانية</option>
-                                    <option value="45">45 ثانية</option>
-                                    <option value="60">60 ثانية</option>
+                                    <option value="20"><?php echo get_string('poll_duration_20', 'mod_liveclass'); ?></option>
+                                    <option value="30" selected><?php echo get_string('poll_duration_30', 'mod_liveclass'); ?></option>
+                                    <option value="45"><?php echo get_string('poll_duration_45', 'mod_liveclass'); ?></option>
+                                    <option value="60"><?php echo get_string('poll_duration_60', 'mod_liveclass'); ?></option>
                                 </select>
                             </div>
                             <button type="submit" id="btn-submit-create-poll" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">
@@ -682,7 +681,7 @@ echo $OUTPUT->header();
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0 fw-bold"><i class="fa fa-user me-1"></i> <span id="focus-modal-student-name">...</span></h6>
-                            <span class="badge bg-danger rounded-pill px-3 py-2" id="focus-modal-count-badge">0 تنبيه</span>
+                            <span class="badge bg-danger rounded-pill px-3 py-2" id="focus-modal-count-badge"><?php echo s(get_string('focus_alert_badge_label', 'mod_liveclass')); ?></span>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-sm table-striped align-middle mb-0">
@@ -714,13 +713,18 @@ echo $OUTPUT->header();
             var spinner = document.getElementById('refresh-spinner');
             var cmid = <?php echo (int)$cm->id; ?>;
             var groupid = <?php echo (int)$roster->selected_group_id; ?>;
-            var sesskey = '<?php echo sesskey(); ?>';
+            var sesskey = <?php echo json_encode(sesskey()); ?>;
+            function escHtml(str) {
+                return String(str == null ? '' : str)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
 
             // Mute all button
             var muteAllBtn = document.getElementById('btn-mute-all');
             if (muteAllBtn) {
                 muteAllBtn.addEventListener('click', function() {
-                    if (confirm('<?php echo get_string('mute_all_confirm', 'mod_liveclass'); ?>')) {
+                    if (confirm(<?php echo json_encode(get_string('mute_all_confirm', 'mod_liveclass')); ?>)) {
                         muteAllBtn.disabled = true;
                         fetch('control.php?cmid=' + cmid + '&action=muteall&sesskey=' + sesskey)
                             .then(function(r) { return r.json(); })
@@ -776,7 +780,7 @@ echo $OUTPUT->header();
                     .then(function(r) { return r.json(); })
                     .then(function(res) {
                         submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> <?php echo get_string('create_poll', 'mod_liveclass'); ?>';
+                        submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> ' + <?php echo json_encode(get_string('create_poll', 'mod_liveclass')); ?>;
                         if (res.status === 'success' && res.poll) {
                             currentPollId = res.poll.id;
                             document.getElementById('poll-live-results').classList.remove('d-none');
@@ -787,7 +791,7 @@ echo $OUTPUT->header();
                     })
                     .catch(function() {
                         submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> <?php echo get_string('create_poll', 'mod_liveclass'); ?>';
+                        submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> ' + <?php echo json_encode(get_string('create_poll', 'mod_liveclass')); ?>;
                     });
                 });
             }
@@ -798,20 +802,35 @@ echo $OUTPUT->header();
                     .then(function(r) { return r.json(); })
                     .then(function(res) {
                         if (res.status === 'success') {
-                            document.getElementById('poll-results-total').textContent = res.total;
-                            var barsHtml = '';
-                            res.options.forEach(function(opt) {
+                            var totalEl = document.getElementById('poll-results-total');
+                            if (totalEl) totalEl.textContent = res.total;
+                            var barsEl = document.getElementById('poll-results-bars');
+                            if (!barsEl) return;
+                            barsEl.innerHTML = '';
+                            (res.options || []).forEach(function(opt) {
                                 var cnt = res.counts[opt] || 0;
                                 var pct = res.total > 0 ? Math.round((cnt / res.total) * 100) : 0;
-                                barsHtml += '<div class="mb-2">' +
-                                    '<div class="d-flex justify-content-between small fw-bold mb-1">' +
-                                    '<span>' + opt + '</span><span>' + cnt + ' (' + pct + '%)</span>' +
-                                    '</div>' +
-                                    '<div class="progress" style="height: 10px;">' +
-                                    '<div class="progress-bar bg-success" style="width: ' + pct + '%;"></div>' +
-                                    '</div></div>';
+                                var row = document.createElement('div');
+                                row.className = 'mb-2';
+                                var hdr = document.createElement('div');
+                                hdr.className = 'd-flex justify-content-between small fw-bold mb-1';
+                                var optSpan = document.createElement('span');
+                                optSpan.textContent = opt; // Safe: textContent, no HTML interpretation.
+                                var cntSpan = document.createElement('span');
+                                cntSpan.textContent = cnt + ' (' + pct + '%)';
+                                hdr.appendChild(optSpan);
+                                hdr.appendChild(cntSpan);
+                                var progress = document.createElement('div');
+                                progress.className = 'progress';
+                                progress.style.height = '10px';
+                                var bar = document.createElement('div');
+                                bar.className = 'progress-bar bg-success';
+                                bar.style.width = pct + '%';
+                                progress.appendChild(bar);
+                                row.appendChild(hdr);
+                                row.appendChild(progress);
+                                barsEl.appendChild(row);
                             });
-                            document.getElementById('poll-results-bars').innerHTML = barsHtml;
                         }
                     });
             }
@@ -884,16 +903,16 @@ echo $OUTPUT->header();
                                             var bgClass = (st.percent >= <?php echo (int)$liveclass->min_attendance_pct; ?>) ? 'bg-success' : 'bg-info';
                                             progressTd.innerHTML = '<div class="d-flex align-items-center">' +
                                                 '<div class="progress flex-grow-1 me-2" style="height: 8px;">' +
-                                                '<div class="progress-bar ' + bgClass + '" style="width: ' + Math.min(100, st.percent) + '%;"></div>' +
+                                                '<div class="progress-bar ' + bgClass + '" style="width: ' + Math.min(100, Number(st.percent) || 0) + '%;"></div>' +
                                                 '</div>' +
-                                                '<span class="small fw-bold">' + st.percent + '%</span>' +
+                                                '<span class="small fw-bold">' + escHtml(st.percent) + '%</span>' +
                                                 '</div>' +
-                                                '<div class="small text-muted">' + st.duration_mins + ' دقيقة</div>';
+                                                '<div class="small text-muted">' + escHtml(st.duration_mins) + ' <?php echo s(get_string('minutes_unit', 'mod_liveclass')); ?></div>';
                                         }
 
                                         if (focusTd) {
                                             if (st.tab_switches > 0) {
-                                                focusTd.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0 btn-focus-detail" data-userid="' + st.id + '" data-name="' + encodeURIComponent(st.fullname) + '" data-count="' + st.tab_switches + '" title="<?php echo get_string('focus_alerts_desc', 'mod_liveclass'); ?>"><i class="fa fa-exclamation-triangle"></i> ' + st.tab_switches + ' <span style="font-size:0.75rem;">(تفاصيل)</span></button>';
+                                                focusTd.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0 btn-focus-detail" data-userid="' + escHtml(st.id) + '" data-name="' + encodeURIComponent(st.fullname) + '" data-count="' + escHtml(st.tab_switches) + '" title="<?php echo get_string('focus_alerts_desc', 'mod_liveclass'); ?>"><i class="fa fa-exclamation-triangle"></i> ' + escHtml(st.tab_switches) + ' <span style="font-size:0.75rem;"><?php echo s(get_string('focus_alert_detail', 'mod_liveclass')); ?></span></button>';
                                             } else {
                                                 focusTd.innerHTML = '<span class="text-muted small">-</span>';
                                             }
@@ -966,7 +985,7 @@ echo $OUTPUT->header();
             var endSessionBtn = document.getElementById('btn-end-session');
             if (endSessionBtn) {
                 endSessionBtn.addEventListener('click', function() {
-                    if (confirm('<?php echo get_string('end_session_confirm', 'mod_liveclass'); ?>')) {
+                    if (confirm(<?php echo json_encode(get_string('end_session_confirm', 'mod_liveclass')); ?>)) {
                         endSessionBtn.disabled = true;
                         fetch('control.php?cmid=' + cmid + '&action=endsession&sesskey=' + sesskey)
                             .then(function(r) { return r.json(); })
@@ -1011,7 +1030,7 @@ echo $OUTPUT->header();
                 var nameEl = document.getElementById('focus-modal-student-name');
                 if (nameEl) nameEl.textContent = sname;
                 var countBadge = document.getElementById('focus-modal-count-badge');
-                if (countBadge) countBadge.textContent = count + ' تنبيه';
+                if (countBadge) countBadge.textContent = escHtml(<?php echo json_encode(get_string('alerts_unit', 'mod_liveclass')); ?>) + ': ' + escHtml(count);
                 var tbody = document.getElementById('focus-modal-tbody');
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted"><i class="fa fa-spinner fa-spin"></i> جاري تحميل تفاصيل تحركات الطالب...</td></tr>';
 
@@ -1024,17 +1043,21 @@ echo $OUTPUT->header();
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.status === 'success' && data.logs && data.logs.length > 0) {
-                            var html = '';
+                            tbody.innerHTML = '';
                             data.logs.forEach(function(item, idx) {
                                 var badgeClass = (item.event_type === 'tab_hidden') ? 'bg-danger' : ((item.event_type === 'focus_lost') ? 'bg-warning text-dark' : 'bg-success');
-                                html += '<tr>' +
-                                    '<td>' + (idx + 1) + '</td>' +
-                                    '<td class="font-monospace small">' + item.time + '</td>' +
-                                    '<td><span class="badge ' + badgeClass + '">' + item.label + '</span></td>' +
-                                    '<td class="small text-muted">' + (item.details ? item.details : '-') + '</td>' +
-                                    '</tr>';
+                                var tr = document.createElement('tr');
+                                var td1 = document.createElement('td'); td1.textContent = idx + 1;
+                                var td2 = document.createElement('td'); td2.className = 'font-monospace small'; td2.textContent = item.time;
+                                var td3 = document.createElement('td');
+                                var badge = document.createElement('span');
+                                badge.className = 'badge ' + badgeClass;
+                                badge.textContent = item.label; // Safe: textContent.
+                                td3.appendChild(badge);
+                                var td4 = document.createElement('td'); td4.className = 'small text-muted'; td4.textContent = item.details || '-'; // Safe: textContent.
+                                tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+                                tbody.appendChild(tr);
                             });
-                            tbody.innerHTML = html;
                         } else {
                             tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">لا توجد سجلات مغادرة مسجلة لهذا الطالب في الجلسة الحالية.</td></tr>';
                         }

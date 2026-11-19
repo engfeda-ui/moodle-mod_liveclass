@@ -37,6 +37,10 @@ function liveclass_add_instance($liveclass, $mform = null) {
     $liveclass->timecreated = time();
     $liveclass->timemodified = time();
 
+    // Sanity clamps on ranges (input validated by the form, clamped here as safety).
+    $liveclass->min_attendance_pct = (int)min(100, max(0, (int)$liveclass->min_attendance_pct));
+    $liveclass->max_participants = (int)max(0, (int)$liveclass->max_participants);
+
     if (empty($liveclass->room_name)) {
         $liveclass->room_name = 'liveclass_' . $liveclass->course . '_' . time();
     }
@@ -57,6 +61,10 @@ function liveclass_update_instance($liveclass, $mform = null) {
 
     $liveclass->timemodified = time();
     $liveclass->id = $liveclass->instance;
+
+    // Sanity clamps on ranges (input validated by the form, clamped here as safety).
+    $liveclass->min_attendance_pct = (int)min(100, max(0, (int)$liveclass->min_attendance_pct));
+    $liveclass->max_participants = (int)max(0, (int)$liveclass->max_participants);
 
     return $DB->update_record('liveclass', $liveclass);
 }

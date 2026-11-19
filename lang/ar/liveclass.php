@@ -171,3 +171,28 @@ $string['moderator_ended_notice'] = 'انتهى وقت الحصة المجدول
 $string['end_session_btn'] = 'إنهاء الحصة وإغلاقها';
 $string['end_session_confirm'] = 'هل أنت متأكد من رغبتك في إنهاء الحصة وإغلاق القاعة لجميع المتدربين؟';
 
+// v1.2.2 — New strings.
+$string['recorded_duration_label'] = 'مدة حضورك المسجلة:';
+$string['minutes_unit'] = 'دقيقة';
+$string['attendance_pct_label'] = 'نسبة الحضور المحققة:';
+$string['attendance_min_label'] = 'الحد الأدنى';
+$string['moderator_notice_prefix'] = 'تنبيه للمدرب:';
+$string['scheduled_start'] = 'موعد البدء المجدول';
+$string['scheduled_end'] = 'انتهى موعد الحصة المجدول';
+$string['students_blocked_msg'] = 'المتدربون لا يستطيعون الدخول حالياً.';
+$string['nostudentsyet'] = 'لا يوجد متدربين بعد';
+$string['raise_hand'] = 'رفع اليد';
+$string['focus_alert_detail'] = '(تفاصيل)';
+$string['focus_alert_badge_label'] = 'التنبيهات';
+$string['alerts_unit'] = 'تنبيهات';
+$string['default_poll_question'] = 'هل أنت متابع ومستوعب للشرح الآن؟';
+$string['default_poll_options'] = 'نعم، مستوعب تماماً\nأحتاج إعادة نقطة معيدة\nلدي سؤال';
+$string['poll_duration_20'] = '20 ثانية';
+$string['poll_duration_30'] = '30 ثانية';
+$string['poll_duration_45'] = '45 ثانية';
+$string['poll_duration_60'] = '60 ثانية';
+$string['actions'] = 'إجراءات';
+$string['refresh_now'] = 'تحديث الآن';
+$string['user_not_enrolled'] = 'المستخدم المستهدف غير مسجل في هذه الكورس.';
+$string['session_ended_msg'] = 'تم إنهاء الجلسة';
+

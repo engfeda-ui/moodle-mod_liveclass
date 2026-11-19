@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/liveclass/db" VERSION="20261111" COMMENT="XMLDB file for Moodle mod_liveclass">
+<XMLDB PATH="mod/liveclass/db" VERSION="2026111902" COMMENT="XMLDB file for Moodle mod_liveclass">
   <TABLES>
+    <!-- NOTE: v1.2.2 added `liveclassid` + `duration_seconds` to liveclass_polls and
+         `timecreated` to liveclass_poll_answers to match the poll API (poll_api.php).
+         Existing installs are migrated by db/upgrade.php. -->
     <TABLE NAME="liveclass" COMMENT="Defines each LiveClass virtual classroom instance in a course">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
@@ -114,16 +117,22 @@
     <TABLE NAME="liveclass_polls" COMMENT="Spontaneous engagement checks during live lectures">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="liveclassid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FKey to liveclass instance"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Live session id (0 when none)"/>
         <FIELD NAME="question" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="options_json" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
-        <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
-        <FIELD NAME="expires_at" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="duration_seconds" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="30" SEQUENCE="false" COMMENT="Duration of the poll in seconds"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Timestamp the poll was created"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Timestamp the poll was modified"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="fk_session_polls" TYPE="foreign" FIELDS="sessionid" REFTABLE="liveclass_sessions" REFFIELDS="id"/>
+        <KEY NAME="fk_liveclass_polls" TYPE="foreign" FIELDS="liveclassid" REFTABLE="liveclass" REFFIELDS="id"/>
       </KEYS>
+      <INDEXES>
+        <INDEX NAME="liveclassid" UNIQUE="false" FIELDS="liveclassid"/>
+        <INDEX NAME="sessionid" UNIQUE="false" FIELDS="sessionid"/>
+      </INDEXES>
     </TABLE>
 
     <TABLE NAME="liveclass_poll_answers" COMMENT="Answers validating student presence during live polls">
@@ -133,6 +142,7 @@
         <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="answer" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="answered_at" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Timestamp of the answer"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>

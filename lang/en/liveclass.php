@@ -171,3 +171,28 @@ $string['moderator_ended_notice'] = 'The scheduled class time has ended. Student
 $string['end_session_btn'] = 'End Class for Everyone';
 $string['end_session_confirm'] = 'Are you sure you want to end this class and close the room for all students?';
 
+// v1.2.2 — New strings.
+$string['recorded_duration_label'] = 'Your recorded attendance duration:';
+$string['minutes_unit'] = 'minutes';
+$string['attendance_pct_label'] = 'Achieved attendance percentage:';
+$string['attendance_min_label'] = 'Minimum';
+$string['moderator_notice_prefix'] = 'Attention to Trainer:';
+$string['scheduled_start'] = 'Scheduled start';
+$string['scheduled_end'] = 'Scheduled end';
+$string['students_blocked_msg'] = 'Students cannot enter right now.';
+$string['nostudentsyet'] = 'No students yet';
+$string['raise_hand'] = 'Raise Hand';
+$string['focus_alert_detail'] = '(Details)';
+$string['focus_alert_badge_label'] = 'Alerts';
+$string['alerts_unit'] = 'alerts';
+$string['default_poll_question'] = 'Are you keeping up with the explanation now?';
+$string['default_poll_options'] = 'Yes, keeping up well\nI need the last point repeated\nI have a question';
+$string['poll_duration_20'] = '20s';
+$string['poll_duration_30'] = '30s';
+$string['poll_duration_45'] = '45s';
+$string['poll_duration_60'] = '60s';
+$string['actions'] = 'Actions';
+$string['refresh_now'] = 'Refresh Now';
+$string['user_not_enrolled'] = 'Target user is not enrolled in this course.';
+$string['session_ended_msg'] = 'Session ended';
+

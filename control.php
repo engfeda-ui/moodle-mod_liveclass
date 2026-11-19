@@ -139,7 +139,7 @@ switch ($action) {
                 json_encode(['moderator' => fullname($USER), 'time' => time()])
             );
         }
-        echo json_encode(['status' => 'success', 'message' => 'Session ended']);
+        echo json_encode(['status' => 'success', 'message' => get_string('session_ended_msg', 'mod_liveclass')]);
         break;
 
     default:

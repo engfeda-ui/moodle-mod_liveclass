@@ -44,7 +44,7 @@ if ($ADMIN->fulltree) {
         'mod_liveclass/livekit_api_key',
         get_string('livekit_api_key', 'mod_liveclass'),
         get_string('livekit_api_key_desc', 'mod_liveclass'),
-        'SANAD_API_KEY',
+        '',
         PARAM_TEXT
     ));
 
@@ -52,7 +52,7 @@ if ($ADMIN->fulltree) {
         'mod_liveclass/livekit_api_secret',
         get_string('livekit_api_secret', 'mod_liveclass'),
         get_string('livekit_api_secret_desc', 'mod_liveclass'),
-        'sanad_proctoring_secret_key_2026_livekit'
+        ''
     ));
 
     // Automated Attendance Defaults.

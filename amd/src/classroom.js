@@ -9,6 +9,12 @@
 define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_client'], function($, Notification, Ajax, LivekitClient) {
     'use strict';
 
+    function escHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     class LiveClassroom {
         constructor(config) {
             this.config = config;
@@ -375,7 +381,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                                     self.raisedHandUsers.add(data.userid);
                                     const tile = $(`#gallery-tile-${data.userid}`);
                                     if (tile.length && !tile.find('.hand-badge').length) {
-                                        tile.prepend(`<div class="hand-badge hand-badge-clickable animate-bounce" data-userid="${data.userid}" title="انقر لخفض يد الطالب">✋</div>`);
+                                        tile.prepend(`<div class="hand-badge hand-badge-clickable animate-bounce" data-userid="${escHtml(Math.floor(Number(data.userid) || 0))}" title="انقر لخفض يد الطالب">✋</div>`);
                                     }
                                 } else {
                                     self.raisedHandUsers.delete(data.userid);
@@ -463,7 +469,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             const userId = uidMatch ? parseInt(uidMatch[1], 10) : 0;
             if (!userId) return;
 
-            const instructorId = self.config.instructorId || 2;
+            const instructorId = self.config.instructorId || 0;
             const isInstructor = (userId === instructorId || participant.name === self.config.instructorName);
 
             if (track.kind === 'video') {
@@ -553,7 +559,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
         handleTrackUnsubscribed(track, participant) {
             const uidMatch = (participant.identity || '').match(/user_(\d+)/);
             const userId = uidMatch ? parseInt(uidMatch[1], 10) : 0;
-            const instructorId = this.config.instructorId || 2;
+            const instructorId = this.config.instructorId || 0;
             const isInstructor = (userId === instructorId || participant.name === this.config.instructorName);
 
             track.detach().forEach(el => el.remove());
@@ -677,9 +683,9 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             if (gridEl.length) {
                 // Ensure Instructor Tile exists
                 let instTile = $('#gallery-instructor-tile');
-                const instructorTitle = self.config.isModerator ? 
+                const instructorTitle = escHtml(self.config.isModerator ? 
                     `${self.config.displayName} (أنت - المدرب)` : 
-                    (self.config.instructorName || 'المحاضر');
+                    (self.config.instructorName || 'المحاضر'));
 
                 if (!instTile.length) {
                     const instHtml = `
@@ -770,16 +776,16 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         } else {
                             // New student joined: append tile
                             const newTileHtml = `
-                                <div class="gallery-tile student-tile tile-active shadow position-relative" id="gallery-tile-${st.id}" data-userid="${st.id}">
-                                    ${st.handRaised ? `<div class="hand-badge animate-bounce ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${st.id}" title="${self.config.isModerator ? 'انقر لخفض يد الطالب' : 'رفع اليد للمشاركة'}">✋</div>` : ''}
-                                    <video id="livekit-video-${st.id}" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; z-index: 2; display: none;" autoplay playsinline></video>
-                                    <img id="fallback-avatar-${st.id}" src="${st.avatar}" class="tile-avatar shadow-sm" alt="${st.fullname}" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
-                                    <div class="tile-name mt-auto z-3" title="${st.fullname}">${st.fullname}</div>
+                                <div class="gallery-tile student-tile tile-active shadow position-relative" id="gallery-tile-${escHtml(Math.floor(Number(st.id) || 0))}" data-userid="${escHtml(Math.floor(Number(st.id) || 0))}">
+                                    ${st.handRaised ? `<div class="hand-badge animate-bounce ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${escHtml(Math.floor(Number(st.id) || 0))}" title="${escHtml(self.config.isModerator ? 'انقر لخفض يد الطالب' : 'رفع اليد للمشاركة')}">✋</div>` : ''}
+                                    <video id="livekit-video-${escHtml(Math.floor(Number(st.id) || 0))}" class="w-100 h-100 position-absolute top-0 start-0" style="object-fit: cover; z-index: 2; display: none;" autoplay playsinline></video>
+                                    <img id="fallback-avatar-${escHtml(Math.floor(Number(st.id) || 0))}" src="${escHtml(st.avatar)}" class="tile-avatar shadow-sm" alt="${escHtml(st.fullname || '')}" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
+                                    <div class="tile-name mt-auto z-3" title="${escHtml(st.fullname || '')}">${escHtml(st.fullname || '')}</div>
                                     <div class="tile-footer z-3">
                                         <div><span class="badge bg-success-subtle text-success border border-success"><span class="pulse-dot pulse-dot-green"></span> متصل</span></div>
                                         <div class="d-flex align-items-center gap-1">
                                             <span class="text-muted small"><i class="fa fa-microphone text-success"></i></span>
-                                            <span class="badge bg-secondary badge-percent" style="font-size: 0.65rem;">${st.percent}%</span>
+                                            <span class="badge bg-secondary badge-percent" style="font-size: 0.65rem;">${escHtml(st.percent)}%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -824,11 +830,11 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                     let filmstripHtml = '';
                     connectedStudents.forEach(st => {
                         filmstripHtml += `
-                            <div class="filmstrip-card card-active shadow-sm" title="${st.fullname}">
-                                ${st.handRaised ? `<div class="hand-badge ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${st.id}" style="top:2px; right:2px; width:22px; height:22px; font-size:0.75rem;" title="${self.config.isModerator ? 'انقر لخفض يد الطالب' : ''}">✋</div>` : ''}
-                                <img src="${st.avatar}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #22c55e;" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
-                                <div class="text-white text-truncate small mt-1 w-100 text-center" style="font-size: 0.75rem;">${st.fullname}</div>
-                                <span class="badge bg-success" style="font-size: 0.6rem;">${st.percent}%</span>
+                            <div class="filmstrip-card card-active shadow-sm" title="${escHtml(st.fullname || '')}">
+                                ${st.handRaised ? `<div class="hand-badge ${self.config.isModerator ? 'hand-badge-clickable' : ''}" data-userid="${escHtml(st.id)}" style="top:2px; right:2px; width:22px; height:22px; font-size:0.75rem;" title="${escHtml(self.config.isModerator ? 'انقر لخفض يد الطالب' : '')}">✋</div>` : ''}
+                                <img src="${escHtml(st.avatar)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #22c55e;" onerror="this.src=M.cfg.wwwroot+'/pix/u/f1.png'">
+                                <div class="text-white text-truncate small mt-1 w-100 text-center" style="font-size: 0.75rem;">${escHtml(st.fullname || '')}</div>
+                                <span class="badge bg-success" style="font-size: 0.6rem;">${escHtml(st.percent)}%</span>
                             </div>
                         `;
                     });
@@ -1322,19 +1328,29 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
         }
 
         showPollPopup(poll) {
-            $('#poll-question-text').text(poll.question);
-            let optionsHtml = '';
-            (poll.options || []).forEach((opt, idx) => {
-                optionsHtml += `
-                    <div class="form-check p-2 rounded border mb-2 bg-light">
-                        <input class="form-check-input ms-2" type="radio" name="poll_option" id="poll_opt_${idx}" value="${opt}" required>
-                        <label class="form-check-label fw-bold cursor-pointer" for="poll_opt_${idx}">
-                            ${opt}
-                        </label>
-                    </div>
-                `;
-            });
-            $('#poll-options-container').html(optionsHtml);
+            $('#poll-question-text').text(poll.question || '');
+            const optionsContainer = document.getElementById('poll-options-container');
+            if (optionsContainer) {
+                optionsContainer.innerHTML = '';
+                (poll.options || []).forEach((opt, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check p-2 rounded border mb-2 bg-light';
+                    const input = document.createElement('input');
+                    input.className = 'form-check-input ms-2';
+                    input.type = 'radio';
+                    input.name = 'poll_option';
+                    input.id = 'poll_opt_' + idx;
+                    input.value = String(opt); // Safe: value attribute, not HTML interpreted.
+                    input.required = true;
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label fw-bold cursor-pointer';
+                    label.htmlFor = 'poll_opt_' + idx;
+                    label.textContent = String(opt); // Safe: textContent, no HTML interpretation.
+                    div.appendChild(input);
+                    div.appendChild(label);
+                    optionsContainer.appendChild(div);
+                });
+            }
             $('#poll-overlay').removeClass('d-none');
 
             let timeLeft = poll.time_left;

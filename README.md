@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.2.1-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.2.2-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,31 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.2.2] - 2026-11-19
+- **Critical Polls Schema Sync (`db/install.xml`, `db/upgrade.php`, `poll_api.php`)**:
+  - Fixed schema drift between `db/install.xml` and `poll_api.php`: `liveclass_polls` now defines `liveclassid`, `duration_seconds`, `timecreated`, `timemodified`; `liveclass_poll_answers` now defines `timecreated`. Previously `create`/`get_active`/`results` in `poll_api.php` referenced columns that did not exist (broken polls feature on fresh installs).
+  - Added `db/upgrade.php` to migrate existing databases (adds the missing columns) — `moodle-plugin-ci savepoints` compliant.
+- **LiveKit Webhook Security Fix (`webhook.php`)**:
+  - Fixed config key typo: `get_config('mod_liveclass', 'api_secret')` → `get_config('mod_liveclass', 'livekit_api_secret')`. HMAC signature verification was previously silently disabled.
+  - Added missing `token_factory::base64url_decode()` (previously a fatal error when an auth header was present).
+  - Handle the `Bearer ` prefix on the `Authorization` header sent by LiveKit.
+  - Reject webhook requests with a missing signature when a secret is configured.
+- **Security Hardening (`token_factory.php`, `settings.php`)**:
+  - Removed hardcoded default LiveKit API key/secret fallbacks (`'SANAD_API_KEY'` / `'sanad_proctoring_secret_key_2026_livekit'`) — the JWT `room` claim corrected to the proper `roomName` grant.
+- **Stored XSS Fixes (`view.php`, `amd/src/classroom.js`)**:
+  - Poll results are now rendered via DOM APIs (`textContent`) — poll options injected through `innerHTML` (stored XSS).
+  - Roster tiles/filmstrip/instructor tile names escaped via `escHtml()` helper (student/teacher names from profiles).
+  - Focus-alert detail modal rows built with `textContent` (student-typed event details from `log_event.php`).
+- **Security & Bug Fixes**:
+  - `nudge.php`: verify target user is enrolled in the module's course.
+  - `attendance_engine.php`: null-guard when session/liveclass lookup fails in `participant_left()`.
+  - `roster_manager.php`: fixed `groups_get_members()` call — `$userfields` was passed as `$sort` instead of `$fields`.
+  - `poll_api.php`: `get_active` action changed from `PARAM_ALPHA` to `PARAM_ALPHANUMEXT` (underscore `get_active` was being stripped, making the case unreachable); question/answer truncated to DB column length.
+  - `view.php`: hardcoded Arabic strings converted to localized `get_string()` calls; `$instructor_id` fallback corrected to `0`.
+  - `view.php`: loads the previously unapplied `styles.css` via `$PAGE->requires->css()`.
+- **AMD Path Fix (`view.php`)**: `js_call_amd('mod_liveclass/classroom', ...)` — `amd/classroom.js` and `amd/livekit_client.js` now exist at the module root (copied from `amd/src/`), matching the Moodle loader's path convention.
+- **i18n**: Added 21 missing strings (`nostudentsyet`, `raise_hand`, `actions`, `recorded_duration_label`, `minutes_unit`, `attendance_pct_label`, `attendance_min_label`, `moderator_notice_prefix`, `scheduled_start`, `scheduled_end`, `students_blocked_msg`, `focus_alert_detail`, `focus_alert_badge_label`, `alerts_unit`, `default_poll_question`, `default_poll_options`, `poll_duration_20/30/45/60`, `refresh_now`, `user_not_enrolled`) with full EN/AR parity (155 keys).
 
 ### [v1.2.1] - 2026-11-17
 - **IDE Diagnostic & Static Analysis Hygiene (`control.php`, `heartbeat.php`, `version.php`)**:

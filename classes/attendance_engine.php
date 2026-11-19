@@ -132,7 +132,11 @@ class attendance_engine {
 
         // 3. Compute percentage against expected session length.
         $session = $DB->get_record('liveclass_sessions', ['id' => $sessionid]);
-        $liveclass = $DB->get_record('liveclass', ['id' => $session->liveclassid]);
+        $liveclass = $session ? $DB->get_record('liveclass', ['id' => $session->liveclassid]) : null;
+
+        if (!$liveclass) {
+            return false;
+        }
 
         $planned_duration = max(1, $liveclass->end_time - $liveclass->start_time);
         if ($session->actual_start > 0 && $session->actual_end > $session->actual_start) {

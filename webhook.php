@@ -38,9 +38,18 @@ if (empty($raw_body)) {
 }
 
 // LiveKit Webhook HMAC-SHA256 Token Verification.
-$api_secret = get_config('mod_liveclass', 'api_secret');
+$api_secret = get_config('mod_liveclass', 'livekit_api_secret');
 $auth_header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-if (!empty($api_secret) && !empty($auth_header)) {
+// LiveKit sends the token in the Authorization header as "Bearer <jwt>".
+if (strpos($auth_header, 'Bearer ') === 0) {
+    $auth_header = substr($auth_header, 7);
+}
+if (!empty($api_secret)) {
+    if (empty($auth_header)) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Missing webhook signature']);
+        exit;
+    }
     $token_parts = explode('.', $auth_header);
     if (count($token_parts) === 3) {
         $expected_sig = hash_hmac('sha256', $token_parts[0] . '.' . $token_parts[1], $api_secret, true);
@@ -50,6 +59,10 @@ if (!empty($api_secret) && !empty($auth_header)) {
             echo json_encode(['status' => 'error', 'message' => 'Invalid webhook signature']);
             exit;
         }
+    } else {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid webhook signature format']);
+        exit;
     }
 }
 

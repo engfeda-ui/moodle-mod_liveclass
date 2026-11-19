@@ -47,8 +47,8 @@ class token_factory {
         array $extra_metadata = [],
         int $ttl = 21600
     ): string {
-        $apikey = get_config('mod_liveclass', 'livekit_api_key') ?: 'SANAD_API_KEY';
-        $apisecret = get_config('mod_liveclass', 'livekit_api_secret') ?: 'sanad_proctoring_secret_key_2026_livekit';
+        $apikey = get_config('mod_liveclass', 'livekit_api_key') ?: '';
+        $apisecret = get_config('mod_liveclass', 'livekit_api_secret') ?: '';
 
         $now = time();
 
@@ -58,7 +58,7 @@ class token_factory {
         ];
 
         $grants = [
-            'room'           => $roomname,
+            'roomName'       => $roomname,
             'roomJoin'       => true,
             'canSubscribe'   => true,
             'canPublish'     => true,
@@ -97,6 +97,20 @@ class token_factory {
      */
     private static function base64url_encode(string $data): string {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    /**
+     * URL-safe Base64 decoding according to RFC 7515.
+     *
+     * @param string $data Base64URL string.
+     * @return string Raw data.
+     */
+    public static function base64url_decode(string $data): string {
+        $remainder = strlen($data) % 4;
+        if ($remainder) {
+            $data .= substr('====', $remainder);
+        }
+        return base64_decode(strtr($data, '-_', '+/'), true) ?: '';
     }
 }
 
