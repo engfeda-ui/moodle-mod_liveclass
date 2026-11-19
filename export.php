@@ -27,6 +27,32 @@ require_once(__DIR__ . '/lib.php');
 
 global $DB;
 
+/**
+ * Prevent CSV formula injection: prefix cells starting with =, +, - or @
+ * so Excel treats them as text when exporting attendance data.
+ *
+ * @param mixed $value Cell value.
+ * @return mixed Sanitized value.
+ */
+function export_sanitize_csv_cell($value) {
+    if (is_string($value) && preg_match('/^[=+\-@]/', $value)) {
+        return "'" . $value;
+    }
+    return $value;
+}
+
+/**
+ * Write a sanitized CSV row.
+ *
+ * @param resource $output Output resource (php://output).
+ * @param array $fields Field values.
+ * @return void
+ */
+function export_fputcsv($output, array $fields) {
+    $clean = array_map('export_sanitize_csv_cell', $fields);
+    return fputcsv($output, $clean);
+}
+
 $id = required_param('id', PARAM_INT); // Course Module ID.
 $groupid = optional_param('group', 0, PARAM_INT);
 
@@ -54,22 +80,22 @@ $output = fopen('php://output', 'w');
 fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
 // Header metadata rows.
-fputcsv($output, [get_string('pluginname', 'mod_liveclass'), format_string($liveclass->name)]);
-fputcsv($output, [get_string('course'), format_string($course->fullname)]);
+export_fputcsv($output, [get_string('pluginname', 'mod_liveclass'), format_string($liveclass->name)]);
+export_fputcsv($output, [get_string('course'), format_string($course->fullname)]);
 if ($roster->group_info->target_group) {
-    fputcsv($output, [get_string('target_group', 'mod_liveclass'), $roster->group_info->target_group->name]);
+    export_fputcsv($output, [get_string('target_group', 'mod_liveclass'), $roster->group_info->target_group->name]);
 }
-fputcsv($output, [get_string('starttime', 'mod_liveclass'), userdate($liveclass->start_time)]);
-fputcsv($output, [get_string('endtime', 'mod_liveclass'), userdate($liveclass->end_time)]);
-fputcsv($output, [get_string('min_attendance_req', 'mod_liveclass'), $liveclass->min_attendance_pct . '%']);
-fputcsv($output, [get_string('total_students', 'mod_liveclass'), $roster->total_students]);
-fputcsv($output, [get_string('in_class_count', 'mod_liveclass'), $roster->in_class_count]);
-fputcsv($output, [get_string('online_moodle_count', 'mod_liveclass'), $roster->online_not_in_class_count]);
-fputcsv($output, [get_string('absent_count', 'mod_liveclass'), $roster->absent_count]);
-fputcsv($output, []); // Blank line.
+export_fputcsv($output, [get_string('starttime', 'mod_liveclass'), userdate($liveclass->start_time)]);
+export_fputcsv($output, [get_string('endtime', 'mod_liveclass'), userdate($liveclass->end_time)]);
+export_fputcsv($output, [get_string('min_attendance_req', 'mod_liveclass'), $liveclass->min_attendance_pct . '%']);
+export_fputcsv($output, [get_string('total_students', 'mod_liveclass'), $roster->total_students]);
+export_fputcsv($output, [get_string('in_class_count', 'mod_liveclass'), $roster->in_class_count]);
+export_fputcsv($output, [get_string('online_moodle_count', 'mod_liveclass'), $roster->online_not_in_class_count]);
+export_fputcsv($output, [get_string('absent_count', 'mod_liveclass'), $roster->absent_count]);
+export_fputcsv($output, []); // Blank line.
 
 // Column titles.
-fputcsv($output, [
+export_fputcsv($output, [
     '#',
     get_string('student_id', 'mod_liveclass'),
     get_string('student_name', 'mod_liveclass'),
@@ -92,7 +118,7 @@ foreach ($roster->students as $st) {
         $status_label = get_string('status_absent', 'mod_liveclass');
     }
 
-    fputcsv($output, [
+    export_fputcsv($output, [
         $i++,
         $st->username,
         $st->fullname,

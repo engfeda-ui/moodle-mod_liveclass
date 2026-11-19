@@ -302,7 +302,11 @@ $PAGE->requires->js_call_amd('mod_liveclass/classroom', 'init', [[
     'sesskey'          => sesskey(),
     'recordingMode'    => (int)$liveclass->recording_mode,
     'warnTabSwitch'    => (bool)$liveclass->warn_tab_switch,
+    'presenceCheckMode' => (int)$liveclass->presence_check_mode,
     'minAttendancePct' => (int)$liveclass->min_attendance_pct,
+    'maxParticipants'  => (int)$liveclass->max_participants,
+    'classFullTitle'   => get_string('class_full_title', 'mod_liveclass'),
+    'classFullMsg'     => get_string('class_full_msg', 'mod_liveclass'),
     'startTime'        => (int)$liveclass->start_time,
     'endTime'          => (int)$liveclass->end_time
 ]]);

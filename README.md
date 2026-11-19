@@ -1,7 +1,7 @@
 # 🎥 LiveClass Virtual Classroom (`mod_liveclass`)
 
 [![Moodle Plugin](https://img.shields.io/badge/Moodle-4.1+-orange.svg)](https://moodle.org)
-[![Version](https://img.shields.io/badge/version-v1.2.2-blue.svg)](version.php)
+[![Version](https://img.shields.io/badge/version-v1.2.3-blue.svg)](version.php)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Engine: LiveKit](https://img.shields.io/badge/Engine-LiveKit%20WebRTC-green.svg)](https://livekit.io)
 
@@ -47,6 +47,23 @@ The plugin introduces 7 specialized tables:
 ---
 
 ## 📋 Changelog
+
+### [v1.2.3] - 2026-11-19
+- **`presence_check_mode` — notas pendientes implementadas:**
+  - Formulario (`mod_form.php`) — campo select para 0/1/2 + ayuda + default 1 (alineado con `liveclass.presence_check_mode` en BD).
+  - Funcionalidad al 100%: modo 2 "Random interaction checks" — `classroom.js`:
+    - Si el estudiante está inactivo (mic off + cam off + sin así mano levantada) cada 60s → alerta de presencia + log `interaction_check_missed`.
+    - `markActivity()` añadido en mic/cam/screen/hand/initLiveKit/localTrack.attach.
+  - Strings i18n nuevos (EN+AR): `presence_check_mode*` + `presence_check_*`.
+- **`max_participants` — nota pendiente implementada:**
+  - **Verificado en producción:** el servidor LiveKit (`/home/ubuntu/livekit/livekit.yaml`) tiene `room.max_participants: 50` — ya era el límite real.
+  - El plugin define `max_participants` (DB) pero nunca se usaba → Implementado: default 50 en `mod_form.php`, pasado al AMD config en `view.php` (`maxParticipants`), y en `classroom.js` se bloquea el ingreso de estudiantes cuando la sala está llena (capacidad cliente).
+  - Tabla `liveclass` ya tenía la columna `max_participants` — sin cambios de esquema requeridos.
+- **`export.php` — Prevención de CSV formula injection:**
+  - Nueva función `export_sanitize_csv_cell()` — prefija `'` a celdas que empiezan con `=`, `+`, `-`, `@` (seguridad en Excel).
+  - Todas las escrituras CSV (`fputcsv`) reemplazadas por `export_fputcsv()` que aplica la sanitización.
+- **Corrección de regresión detectada (`roster_manager.php`):**
+  - `groups_get_members($selected_group_id, $userfields)` revertido al original — el 2º parámetro de `groups_get_members` es `$fields` y no `$sort` (verificado contra el servidor).
 
 ### [v1.2.2] - 2026-11-19
 - **Critical Polls Schema Sync (`db/install.xml`, `db/upgrade.php`, `poll_api.php`)**:

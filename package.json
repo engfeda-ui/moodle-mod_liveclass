@@ -1,6 +1,6 @@
 {
   "name": "mod_liveclass",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "LiveClass Virtual Classroom Activity Module for Moodle powered by LiveKit SFU",
   "scripts": {
     "test": "node tests/run-all.js",

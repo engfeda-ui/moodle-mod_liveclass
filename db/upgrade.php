@@ -46,7 +46,7 @@ if (defined('MOODLE_INTERNAL')) {
 function xmldb_liveclass_upgrade($oldversion) {
     global $DB;
 
-    if ($oldversion >= 2026112001) {
+    if ($oldversion >= 2026111903) {
         return true;
     }
 

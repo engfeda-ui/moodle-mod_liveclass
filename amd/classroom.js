@@ -37,6 +37,9 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             this.raisedHandUsers = new Set();
             this.activePollId = 0;
             this.isRecording = (this.config.recordingMode === 1);
+            this.presenceCheckMode = (typeof this.config.presenceCheckMode === 'number') ? this.config.presenceCheckMode : 0;
+            this.interactionCheckInterval = null;
+            this.lastInteractionActivity = Date.now();
 
             this.bindEvents();
         }
@@ -73,6 +76,25 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
         startClassroom() {
             const self = this;
             const stage = $('#liveclass-stage');
+
+            // Student join cap: check current LiveKit connected participants.
+            if (!self.config.isModerator && typeof self.config.maxParticipants === 'number' && self.config.maxParticipants > 0) {
+                const connected = (self.livekitRoom && self.livekitRoom.remoteParticipants) ? (self.livekitRoom.remoteParticipants.size || 0) : 0;
+                if (connected >= self.config.maxParticipants) {
+                    stage.html(`
+                        <div class="text-center p-8">
+                            <div class="mb-3">
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary rounded-circle p-4 d-inline-block"><i class="fa fa-users fa-4x"></i></span>
+                            </div>
+                            <h4>${escHtml(self.config.classFullTitle || '')}</h4>
+                            <p class="text-muted">${escHtml(self.config.classFullMsg || '')}</p>
+                        </div>
+                    `);
+                    self.logEvent('join_blocked', 'Class full: max participants reached');
+                    return;
+                }
+            }
+
             const instructorLabel = self.config.isModerator ? 
                 `${self.config.displayName} (أنت - المدرب)` : 
                 (self.config.instructorName || 'المدرب');
@@ -275,6 +297,28 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             self.bindToolbarControls();
             self.startPollWatcher();
             self.startHeartbeatLoop();
+            self.startInteractionCheck();
+        }
+
+        // Random interaction checks (presence_check_mode === 2): periodically
+        // alert when the student is inactive (no mic, no cam, no hand raised).
+        startInteractionCheck() {
+            const self = this;
+            if (this.presenceCheckMode !== 2) {
+                return;
+            }
+            this.interactionCheckInterval = setInterval(() => {
+                const idle = (self.isMicMuted && self.isCamOff && !self.isHandRaised);
+                if (idle) {
+                    $('#presence-alert').removeClass('d-none');
+                    setTimeout(() => $('#presence-alert').addClass('d-none'), 6000);
+                    self.logEvent('interaction_check_missed', 'Interaction check missed: student inactive');
+                }
+            }, 60000);
+        }
+
+        markActivity() {
+            this.lastInteractionActivity = Date.now();
         }
 
         showToast(type, message) {
@@ -456,6 +500,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         const gmv = document.querySelector('.gallery-my-video');
                         if (gmv) localTrack.attach(gmv);
                     }
+                    self.markActivity();
                 }
             } catch (err) {
                 console.error('[LiveClass] LiveKit WebRTC connection error:', err);
@@ -1003,6 +1048,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         $(this).toggleClass('btn-outline-light btn-danger', self.isMicMuted);
                         $(this).find('i').toggleClass('fa-microphone fa-microphone-slash');
                         self.logEvent(self.isMicMuted ? 'mic_muted' : 'mic_unmuted', 'Microphone state toggled');
+                        self.markActivity();
                     } catch (e) {
                         console.warn('[LiveClass] Toggle mic error:', e);
                     }
@@ -1046,6 +1092,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                                 if (giv) camPub.track.attach(giv);
                             }
                         }
+                        self.markActivity();
                     } catch (e) {
                         console.warn('[LiveClass] Toggle cam error:', e);
                     }
@@ -1057,6 +1104,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                         $(this).toggleClass('btn-outline-light btn-danger', self.isCamOff);
                         $(this).find('i').toggleClass('fa-video-camera fa-eye-slash');
                         self.logEvent(self.isCamOff ? 'cam_disabled' : 'cam_enabled', 'Camera state toggled');
+                        self.markActivity();
                     }
                 }
             });
@@ -1106,6 +1154,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
                 self.isHandRaised = !self.isHandRaised;
                 $(this).toggleClass('btn-outline-warning btn-warning text-dark', self.isHandRaised);
                 self.logEvent(self.isHandRaised ? 'raise_hand' : 'lower_hand', 'Student toggled hand raise');
+                self.markActivity();
 
                 // Instant LiveKit DataChannel broadcast to instructor and peers
                 if (self.livekitRoom && self.livekitRoom.localParticipant) {
@@ -1439,6 +1488,7 @@ define(['jquery', 'core/notification', 'core/ajax', 'mod_liveclass/livekit_clien
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
             if (this.pollInterval) clearInterval(this.pollInterval);
+            if (this.interactionCheckInterval) clearInterval(this.interactionCheckInterval);
             if (this.handAlertTimeout) clearTimeout(this.handAlertTimeout);
             if (this.localStream) this.localStream.getTracks().forEach(t => t.stop());
             if (this.screenStream) this.screenStream.getTracks().forEach(t => t.stop());

@@ -64,6 +64,15 @@ class mod_liveclass_mod_form extends moodleform_mod {
         $mform->addElement('selectyesno', 'warn_tab_switch', get_string('warn_tab_switch', 'mod_liveclass'));
         $mform->setDefault('warn_tab_switch', 1);
 
+        $presence_check_modes = [
+            0 => get_string('presence_check_none', 'mod_liveclass'),
+            1 => get_string('presence_check_tabs', 'mod_liveclass'),
+            2 => get_string('presence_check_random', 'mod_liveclass')
+        ];
+        $mform->addElement('select', 'presence_check_mode', get_string('presence_check_mode', 'mod_liveclass'), $presence_check_modes);
+        $mform->setDefault('presence_check_mode', 1);
+        $mform->addHelpButton('presence_check_mode', 'presence_check_mode', 'mod_liveclass');
+
         $record_options = [
             0 => get_string('recording_disabled', 'mod_liveclass'),
             1 => get_string('recording_automatic', 'mod_liveclass'),
@@ -74,7 +83,7 @@ class mod_liveclass_mod_form extends moodleform_mod {
 
         $mform->addElement('text', 'max_participants', get_string('max_participants', 'mod_liveclass'), ['size' => '4']);
         $mform->setType('max_participants', PARAM_INT);
-        $mform->setDefault('max_participants', 100);
+        $mform->setDefault('max_participants', 50);
 
         // Standard course elements (Availability, Group, Completion).
         $this->standard_coursemodule_elements();
